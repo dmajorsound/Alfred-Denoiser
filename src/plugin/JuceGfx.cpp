@@ -1,4 +1,25 @@
 #include "JuceGfx.h"
+#include "BinaryData.h"
+
+// The script asks for "Arial". Instead of the system's font, the plug-in uses its own built-in
+// Liberation Sans (same letter widths as Arial), so text never runs wider or sits differently on
+// Windows than on macOS, and a missing or substituted system font cannot break the layout.
+static juce::Typeface::Ptr builtInTypeface(bool bold, bool italic)
+{
+    static const juce::Typeface::Ptr faces[4] = {
+        juce::Typeface::createSystemTypefaceFor(BinaryData::LiberationSansRegular_ttf, (size_t)BinaryData::LiberationSansRegular_ttfSize),
+        juce::Typeface::createSystemTypefaceFor(BinaryData::LiberationSansBold_ttf, (size_t)BinaryData::LiberationSansBold_ttfSize),
+        juce::Typeface::createSystemTypefaceFor(BinaryData::LiberationSansItalic_ttf, (size_t)BinaryData::LiberationSansItalic_ttfSize),
+        juce::Typeface::createSystemTypefaceFor(BinaryData::LiberationSansBoldItalic_ttf, (size_t)BinaryData::LiberationSansBoldItalic_ttfSize) };
+    return faces[(bold ? 1 : 0) + (italic ? 2 : 0)];
+}
+
+static juce::Font builtInFont(float height, bool bold, bool italic, bool underline)
+{
+    return juce::Font(juce::FontOptions().withTypeface(builtInTypeface(bold, italic))
+                                         .withHeight(juce::jmax(1.0f, height))
+                                         .withUnderline(underline));
+}
 
 // ------------------------------------------------------------------------------------------- JuceGfx
 JuceGfx::JuceGfx(JsfxRuntime& runtime) : rt(runtime)
@@ -82,7 +103,8 @@ float JuceGfx::ascent(const juce::Font& f)
 const juce::Font& JuceGfx::font()
 {
     if (cur > 0 && cur < 32 && fonts[cur].valid) return fonts[cur].font;
-    return defaultFont;
+    if (!defaultFont) defaultFont = std::make_unique<juce::Font>(builtInFont(13.0f, false, false, false));
+    return *defaultFont;
 }
 
 void JuceGfx::setfont(int idx, const std::string& face, double size, int flags)
@@ -92,17 +114,17 @@ void JuceGfx::setfont(int idx, const std::string& face, double size, int flags)
     auto& f = fonts[cur];
     const juce::String fc(face);
     if (f.valid && f.face == fc && juce::exactlyEqual(f.size, size) && f.flags == flags) return;
-    int style = juce::Font::plain;
+    bool bold = false, italic = false, underline = false;
     for (int k = 0; k < 4; ++k)
     {
         const int ch = (flags >> (k * 8)) & 255;
-        if (ch == 'b') style |= juce::Font::bold;
-        if (ch == 'i') style |= juce::Font::italic;
-        if (ch == 'u') style |= juce::Font::underlined;
+        if (ch == 'b') bold = true;
+        if (ch == 'i') italic = true;
+        if (ch == 'u') underline = true;
     }
     f.face = fc; f.size = size; f.flags = flags;
     // the JSFX font size is the line height (ascent + descent), as gfx_texth reports it in REAPER
-    f.font = juce::Font(juce::FontOptions(fc, (float)juce::jmax(1.0, size), style));
+    f.font = builtInFont((float)size, bold, italic, underline);
     f.valid = true;
 }
 

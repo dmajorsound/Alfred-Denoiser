@@ -1,3 +1,7 @@
+# Builds Alfred on GitHub's own Macs and PCs: macOS VST3 + AU + CLAP (Universal: Apple Silicon and Intel,
+# ad-hoc signed), Windows VST3 + CLAP, plus installers (Mac .pkg, Windows .exe) with the dmajorsound artwork.
+# The results are under "Actions" -> the run -> "Artifacts".
+# "Run workflow" with a tag (e.g. v0.27-beta) also publishes the installers as a GitHub release.
 name: Build
 
 on:
@@ -5,6 +9,16 @@ on:
     branches: [ main ]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a release with this tag, e.g. v0.27-beta (empty = just build)"
+        required: false
+        default: ""
+
+env:
+  VERSION: "0.27 beta"        # shown in the installers
+  FILEVER: "0.27_beta"        # used in the file names
+  PKGVER: "0.27.0"            # numeric version for the macOS package receipts
 
 jobs:
   check-translation:
@@ -26,28 +40,46 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
       - name: Build
         run: cmake --build build --config Release -j 4
-      - name: Sign (ad hoc) and validate the Audio Unit
+      - name: Strip and sign (ad hoc)
         run: |
           A=build/Alfred_artefacts/Release
-          for p in "$A/VST3/Alfred.vst3" "$A/AU/Alfred.component" "$A/CLAP/Alfred.clap"; do
+          mkdir -p out
+          cp -R "$A/VST3/Alfred.vst3" "$A/AU/Alfred.component" "$A/CLAP/Alfred.clap" out/
+          for p in out/Alfred.vst3 out/Alfred.component out/Alfred.clap; do
+            strip -x "$p/Contents/MacOS/Alfred"
+            lipo -info "$p/Contents/MacOS/Alfred"
             codesign --force --deep -s - "$p"
           done
+          du -sh out/*
+      - name: Validate the Audio Unit
+        run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
-          cp -R "$A/AU/Alfred.component" ~/Library/Audio/Plug-Ins/Components/
+          cp -R out/Alfred.component ~/Library/Audio/Plug-Ins/Components/
           killall -9 AudioComponentRegistrar || true
           auval -v aufx Alfd Dmjs
-      - name: Package
+      - name: Installer (.pkg)
         run: |
-          A=build/Alfred_artefacts/Release
-          mkdir -p dist/Alfred-macOS
-          cp -R "$A/VST3/Alfred.vst3" "$A/AU/Alfred.component" "$A/CLAP/Alfred.clap" dist/Alfred-macOS/
-          cp packaging/install_mac.command packaging/README_INSTALL.txt dist/Alfred-macOS/
-          chmod +x dist/Alfred-macOS/install_mac.command
-          cd dist && ditto -c -k --keepParent Alfred-macOS Alfred-macOS.zip
+          mk() {  # $1 bundle  $2 id suffix  $3 install folder
+            rm -rf payload && mkdir payload && cp -R "out/$1" payload/
+            pkgbuild --analyze --root payload comp.plist
+            plutil -replace 0.BundleIsRelocatable -bool NO comp.plist
+            pkgbuild --root payload --component-plist comp.plist --install-location "$3" \
+              --identifier "com.dmajorsound.alfred.$2" --version "$PKGVER" "alfred-$2.pkg"
+          }
+          mk Alfred.vst3 vst3 /Library/Audio/Plug-Ins/VST3
+          mk Alfred.component au /Library/Audio/Plug-Ins/Components
+          mk Alfred.clap clap /Library/Audio/Plug-Ins/CLAP
+          mkdir -p ui
+          cp installer/mac_ui/welcome.html installer/mac_ui/logo.png installer/mac_ui/logo-dark.png ui/
+          tiffutil -cathidpicheck installer/mac_ui/background.png installer/mac_ui/background@2x.png -out ui/background.tiff
+          tiffutil -cathidpicheck installer/mac_ui/background-darkAqua.png installer/mac_ui/background-darkAqua@2x.png -out ui/background-darkAqua.tiff
+          sed "s/VERSION/$PKGVER/g" installer/mac_ui/distribution.xml > distribution.xml
+          productbuild --distribution distribution.xml --resources ui --package-path . "Alfred_${FILEVER}_installer_mac.pkg"
+          ls -la "Alfred_${FILEVER}_installer_mac.pkg"
       - uses: actions/upload-artifact@v4
         with:
-          name: Alfred-macOS
-          path: dist/Alfred-macOS.zip
+          name: Alfred_mac
+          path: Alfred_*_installer_mac.pkg
 
   windows:
     name: Windows
@@ -58,14 +90,76 @@ jobs:
         run: cmake -S . -B build -A x64
       - name: Build
         run: cmake --build build --config Release -j 4
-      - name: Package
-        shell: bash
+      - name: Installer (.exe)
+        shell: pwsh
         run: |
-          A=build/Alfred_artefacts/Release
-          mkdir -p dist/Alfred-Windows
-          cp -R "$A/VST3/Alfred.vst3" "$A/CLAP/Alfred.clap" dist/Alfred-Windows/
-          cp packaging/README_INSTALL.txt dist/Alfred-Windows/
+          Get-ChildItem build\Alfred_artefacts\Release\CLAP, build\Alfred_artefacts\Release\VST3
+          if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVer=$env:VERSION" "/DFileVer=$env:FILEVER" installer\win\alfred.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
-          name: Alfred-Windows
-          path: dist/Alfred-Windows
+          name: Alfred_windows
+          path: installer/win/Output/Alfred_*_installer_win64.exe
+
+  # "Run workflow" with a tag (e.g. v0.27-beta) publishes the installers as a GitHub release
+  release:
+    if: github.event_name == 'workflow_dispatch' && inputs.release != ''
+    needs: [ check-translation, macos, windows ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dl
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release }}
+        run: |
+          cat > notes.txt <<'NOTES'
+          <p align="center">
+          <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/dmajorsound/Alfred-Denoiser/main/installer/mac_ui/logo-dark.png">
+          <img src="https://raw.githubusercontent.com/dmajorsound/Alfred-Denoiser/main/installer/mac_ui/logo.png" alt="dmajorsound" width="200">
+          </picture>
+          </p>
+
+          <h2 align="center">Alfred</h2>
+          <p align="center"><i>A simple Denoiser at your Service</i></p>
+
+          Alfred splits a recording into Signal, Noise and Reverb and lets you rebalance them, for dialogue and sound effects.
+
+          ### Download
+          - **Mac** (Apple Silicon and Intel): `Alfred_FILEVER_installer_mac.pkg` below (VST3, AU, CLAP)
+          - **Windows** (64-bit): `Alfred_FILEVER_installer_win64.exe` below (VST3, CLAP)
+
+          ### Install
+          1. Quit REAPER.
+          2. Open the installer and click through. It puts Alfred into the common plug-in folders.
+          3. Start REAPER. If Alfred does not show up: **Options → Preferences → Plug-ins → VST** (or CLAP) **→ Re-scan**.
+
+          > [!CAUTION]
+          > **Mac: "Alfred can't be opened because it is from an unidentified developer"**
+          >
+          > The installer is not signed by Apple. Do **not** double-click it again. Instead:
+          > 1. **Right-click** (or Control-click) the .pkg and choose **Open**.
+          > 2. Click **Open** in the warning.
+          >
+          > Still blocked? Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to Alfred.
+
+          > [!CAUTION]
+          > **Windows: "Windows protected your PC" (SmartScreen)**
+          >
+          > The installer is not signed by Microsoft.
+          > 1. Click **More info**.
+          > 2. Click **Run anyway**.
+          >
+          > If your browser blocks the download, choose **Keep** in the download list.
+
+          V VERSION, developed with AI assistance · [dmajorsound.com](https://dmajorsound.com)
+          NOTES
+          sed -i "s/FILEVER/$FILEVER/g; s/VERSION/$VERSION/g" notes.txt
+          gh release create "$TAG" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Alfred $VERSION" \
+            --prerelease --notes-file notes.txt dl/Alfred_mac/*.pkg dl/Alfred_windows/*.exe

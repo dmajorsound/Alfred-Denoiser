@@ -72,8 +72,17 @@ else()
         PROPERTIES COMPILE_OPTIONS "-ffp-contract=off")
 endif()
 
+# Arial-compatible font (Liberation Sans, SIL OFL 1.1) built into the plug-in, so the text looks and
+# measures the same on macOS and Windows, whatever fonts the system has
+juce_add_binary_data(AlfredFonts SOURCES
+    resources/fonts/LiberationSans-Regular.ttf
+    resources/fonts/LiberationSans-Bold.ttf
+    resources/fonts/LiberationSans-Italic.ttf
+    resources/fonts/LiberationSans-BoldItalic.ttf)
+
 target_link_libraries(Alfred
     PRIVATE
+        AlfredFonts
         juce::juce_audio_processors
     PUBLIC
         juce::juce_recommended_config_flags
@@ -93,5 +102,5 @@ if(ALFRED_TESTS)
     target_sources(AlfredGfxTest PRIVATE tests/gfxtest.cpp src/plugin/JuceGfx.cpp src/core/JsfxRuntime.cpp src/core/fft.c src/gen/AlfredCore.cpp)
     target_include_directories(AlfredGfxTest PRIVATE src/core src/gen src/plugin)
     target_compile_definitions(AlfredGfxTest PRIVATE WDL_FFT_REALSIZE=8 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
-    target_link_libraries(AlfredGfxTest PRIVATE juce::juce_graphics juce::juce_recommended_config_flags)
+    target_link_libraries(AlfredGfxTest PRIVATE AlfredFonts juce::juce_graphics juce::juce_recommended_config_flags)
 endif()

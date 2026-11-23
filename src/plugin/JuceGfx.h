@@ -37,7 +37,7 @@ private:
     struct FontSlot { juce::String face; double size = 0; int flags = 0; juce::Font font { juce::FontOptions() }; bool valid = false; };
     FontSlot fonts[32];
     int cur = 0;
-    juce::Font defaultFont { juce::FontOptions(13.0f) };
+    std::unique_ptr<juce::Font> defaultFont;
     std::unordered_map<juce::String, juce::Path> textCache;
 };
 

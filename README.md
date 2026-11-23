@@ -17,7 +17,8 @@ Built as VST3, AU (macOS) and CLAP.
 | `tests/` | Null test against the JSFX and a headless interface test. |
 
 To change Alfred: edit `jsfx/Alfred.jsfx`, run `python3 tools/eel2cpp.py jsfx/Alfred.jsfx src/gen AlfredCore`,
-commit. GitHub builds the plug-ins for macOS and Windows (Actions tab, artifacts of the latest run).
+commit. GitHub builds the plug-ins and installers for macOS and Windows (Actions tab, artifacts of the latest run).
+"Run workflow" with a tag such as `v0.27-beta` also publishes the installers as a release.
 
 ## Build locally
 
@@ -30,4 +31,5 @@ cmake --build build --config Release
 
 - [JUCE](https://juce.com) (fetched at build time)
 - [clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions) (fetched at build time)
+- Liberation Sans fonts (`resources/fonts/`), built into the plug-in so text looks the same on every system: SIL Open Font License 1.1, see `resources/fonts/LICENSE-OFL.txt`.
 - `src/core/fft.c`, `src/core/fft.h`: WDL FFT, Copyright (C) 2006 and later Cockos Incorporated, based on DJBFFT — see the license in the file headers.

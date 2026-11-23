@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Alfred – A simple Denoiser at your Service</title>
+    <organization>com.dmajorsound</organization>
+    <background file="background.tiff" alignment="bottomleft" scaling="none"/>
+    <background-darkAqua file="background-darkAqua.tiff" alignment="bottomleft" scaling="none"/>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <domains enable_localSystem="true"/>
+    <choices-outline>
+        <line choice="default"/>
+    </choices-outline>
+    <choice id="default" title="Alfred VST3, AU and CLAP">
+        <pkg-ref id="com.dmajorsound.alfred.vst3"/>
+        <pkg-ref id="com.dmajorsound.alfred.au"/>
+        <pkg-ref id="com.dmajorsound.alfred.clap"/>
+    </choice>
+    <pkg-ref id="com.dmajorsound.alfred.vst3" version="VERSION" onConclusion="none">alfred-vst3.pkg</pkg-ref>
+    <pkg-ref id="com.dmajorsound.alfred.au" version="VERSION" onConclusion="none">alfred-au.pkg</pkg-ref>
+    <pkg-ref id="com.dmajorsound.alfred.clap" version="VERSION" onConclusion="none">alfred-clap.pkg</pkg-ref>
+</installer-gui-script>
