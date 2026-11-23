@@ -1,0 +1,28 @@
+# Updates the text of an existing release from installer/release_notes.md and marks it as the latest
+# release, without rebuilding the plug-ins. Actions -> "Release page" -> Run workflow -> tag.
+name: Release page
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, e.g. v0.27-beta"
+        required: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update the release text
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          VERSION=$(grep -m1 'VERSION:' .github/workflows/build.yml | sed 's/.*VERSION: *"\([^"]*\)".*/\1/')
+          FILEVER=$(grep -m1 'FILEVER:' .github/workflows/build.yml | sed 's/.*FILEVER: *"\([^"]*\)".*/\1/')
+          sed "s/FILEVER/$FILEVER/g; s/VERSION/$VERSION/g" installer/release_notes.md > notes.txt
+          cat notes.txt
+          gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --title "Alfred $VERSION" --notes-file notes.txt --prerelease=false --latest
