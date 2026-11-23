@@ -29,6 +29,7 @@ public:
   double v_am1 = 0.0;
   double v_am2 = 0.0;
   double v_amin = 0.0;
+  double v_ana = 0.0;
   double v_anz = 0.0;
   double v_anzs = 0.0;
   double v_apw = 0.0;
@@ -217,6 +218,7 @@ public:
   double v_slider2 = 0.0;
   double v_slider20 = 0.0;
   double v_slider21 = 0.0;
+  double v_slider22 = 0.0;
   double v_slider3 = 0.0;
   double v_slider4 = 0.0;
   double v_slider5 = 0.0;
@@ -248,9 +250,16 @@ public:
   double v_txi = 0.0;
   double v_uadv = 0.0;
   double v_uah = 0.0;
+  double v_uah2 = 0.0;
+  double v_uana = 0.0;
+  double v_uanh = 0.0;
+  double v_uanw = 0.0;
+  double v_uanx = 0.0;
+  double v_uany = 0.0;
   double v_uapw = 0.0;
   double v_uapx = 0.0;
   double v_uapy = 0.0;
+  double v_uaw = 0.0;
   double v_uay = 0.0;
   double v_ub0 = 0.0;
   double v_ub1 = 0.0;

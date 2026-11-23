@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.27 beta
+//version: 0.28 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -27,6 +27,7 @@ slider18:0<0,1,1{Dark,Light}>-Theme
 slider19:0<0,3,1{None,Signal,Noise,Reverb}>-Delta
 slider20:0<0,1,1{Voice,SFX}>-Mode
 slider21:50<0,100,0.1>-Preserve Transients (%)
+slider22:1<0,1,1{Off,On}>-Analyzer
 
 in_pin:Left
 in_pin:Right
@@ -36,7 +37,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.27 beta";
+#verstr = "0.28 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -530,12 +531,12 @@ function frame() local(i, j, k, m, p, w, re, im, pw, sm, c, na, xi, q, v, gh, g,
     (k > 0 && k < nb-1) ? ( i = (NL-k)*2; fL[i] = re; fL[i+1] = -im; );
     re = w[j]*gn + gq*qr[j]; im = w[j+1]*gn + gq*qr[j+1]; fR[j] = re; fR[j+1] = im;
     (k > 0 && k < nb-1) ? ( i = (NL-k)*2; fR[i] = re; fR[i+1] = -im; );
-    v = g*g*pw; dS[k] += (v-dS[k])*0.25; sS += v;
+    v = g*g*pw; ana ? ( dS[k] += (v-dS[k])*0.25; ); sS += v;
     eacc[ebi[k]] += mv*mv*pw;
     x = ql[j]*ql[j] + ql[j+1]*ql[j+1] + qr[j]*qr[j] + qr[j+1]*qr[j+1];
-    v = gA*ma; v = v*v*(pw+x); dA[k] += (v-dA[k])*0.25; sA += v;
-    v = gR*mr; v = v*v*pw + gR*gR*(1-ma)*(1-ma)*x; dR[k] += (v-dR[k])*0.25; sR += v;
-    dI[k] += (pw+x-dI[k])*0.25;
+    v = gA*ma; v = v*v*(pw+x); ana ? ( dA[k] += (v-dA[k])*0.25; ); sA += v;
+    v = gR*mr; v = v*v*pw + gR*gR*(1-ma)*(1-ma)*x; ana ? ( dR[k] += (v-dR[k])*0.25; ); sR += v;
+    ana ? ( dI[k] += (pw+x-dI[k])*0.25; );
     k += 1;
   );
   lvS += (sS-lvS)*0.3; lvA += (sA-lvA)*0.3; lvR += (sR-lvR)*0.3;
@@ -777,6 +778,8 @@ ser_p == NL ? ( file_mem(0, pst, nb); pst_ok = 1; ) : ( file_avail(0) >= 0 ? pst
 file_avail(0) >= 0 ? ( pmode = (ser_n == NL && ser_mode == 2) ? 2 : 0; need_build = 1; pjob = 0; );
 
 @block
+// the analyzer averages its spectra only while it is switched on (saves work when it is off)
+ana = slider22 >= 0.5;
 srate != last_srate ? setup();
 serve_requests();
 update_params();
@@ -1056,11 +1059,20 @@ loop(8,
   );
   ugn += 1;
 );
-ucurve(dA, ucAMB, 1, 1);
-ucurve(dR, ucREV, 1, 1);
-ucurve(dS, ucSIG, 1, 1);
-ucurve(dI, ucIN, 0, 1);
-(uadv && pmode == 2) ? ucurve(eff, ucTEXT, 0, OSUB);
+// the analyzer curves are the most drawing work of a frame: switched off, only the grid stays
+uana = slider22 >= 0.5;
+uana ? (
+  ucurve(dA, ucAMB, 1, 1);
+  ucurve(dR, ucREV, 1, 1);
+  ucurve(dS, ucSIG, 1, 1);
+  ucurve(dI, ucIN, 0, 1);
+  (uadv && pmode == 2) ? ucurve(eff, ucTEXT, 0, OSUB);
+) : (
+  gfx_setfont(2); ucol(ucDIM, 1);
+  gfx_measurestr("Analyzer off", uaw, uah2);
+  gfx_x = floor(usx + (usw-uaw)/2); gfx_y = floor(usy + ush/2 - uah2/2); gfx_drawstr("Analyzer off");
+  gfx_setfont(3);
+);
 (uadv && slider17 > 0.5) ? (
   ucol(ucSIG, 0.9);
   uei = 0; uen = floor(usw/max(2, floor(3*usc)));
@@ -1078,6 +1090,14 @@ ucurve(dI, ucIN, 0, 1);
 ucol(ucLINE, 1);
 gfx_rect(usx, usy, usw, 1); gfx_rect(usx, usy+ush-1, usw, 1); gfx_rect(usx, usy, 1, ush); gfx_rect(usx+usw-1, usy, 1, ush);
 uin(usx, usy, usw, ush) ? uhov = 30;
+// analyzer on/off: a small switch in the bottom right corner of the display
+gfx_setfont(7);
+uanw = floor(72*usc); uanh = floor(16*usc);
+uanx = usx + usw - uanw - floor(6*usc); uany = usy + ush - uanh - floor(6*usc);
+uin(uanx, uany, uanw, uanh) ? uhov = 31;
+ucol(ucSTAGE, 1); urr(uanx, uany, uanw, uanh, max(2, floor(3*usc)), 1);
+ubtn(uanx, uany, uanw, uanh, uana, uhov == 31, "ANALYZER");
+gfx_setfont(3);
 
 // ---- expert tab: noise print, thresholds, enhance
 uyk = usy + ush + floor(12*usc);
@@ -1259,6 +1279,8 @@ upress ? (
     slider20 = 0; slider_automate(524288); slider_automate(524288, 1);
   ) : uhov == 29 ? (
     slider20 = 1; slider_automate(524288); slider_automate(524288, 1);
+  ) : uhov == 31 ? (
+    slider22 = uana ? 0 : 1; slider_automate(2097152); slider_automate(2097152, 1);
   ) : uhov > 100 ? (
     uedit = uhov-100; strcpy(#uedit, "");
   );
@@ -1310,7 +1332,8 @@ uhov == 23 ? gfx_drawstr("Basic tab: three levels with solo and mute.") :
 uhov == 24 ? gfx_drawstr("Expert tab: noise print, thresholds, Enhance and Preserve Transients.") :
 uhov == 26 ? gfx_drawstr("Reset: all faders back to their defaults. The noise print stays.") :
 uhov == 27 ? gfx_drawstr(udark ? "Dark mode. Click for light." : "Light mode. Click for dark.") :
-uhov == 30 ? gfx_drawstr("Gray: input. Colors: what you hear of each part.") :
+uhov == 30 ? gfx_drawstr(uana ? "Gray: input. Colors: what you hear of each part." : "The analyzer is off. The faders and meters still work.") :
+uhov == 31 ? gfx_drawstr(uana ? "Analyzer: click to switch the spectrum off and save CPU." : "Analyzer: click to show the spectrum again.") :
 uhov == 40 ? gfx_drawstr("Noise threshold: higher treats more as noise, lower keeps more.") :
 uhov == 41 ? gfx_drawstr("Tonal threshold: higher removes more hum and steady tones, lower protects tonal sounds.") :
 uhov == 50 ? gfx_drawstr("Band threshold 20 - 120 Hz: up cleans harder here, down keeps more.") :
