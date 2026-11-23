@@ -33,7 +33,9 @@ jobs:
 
   macos:
     name: macOS (Apple Silicon + Intel)
-    runs-on: macos-latest
+    # built on an Intel Mac (GitHub's Apple Silicon machines often have long queues); the result is still a
+    # Universal binary for both, see CMAKE_OSX_ARCHITECTURES below. auval checks the Intel half here.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
       - name: Configure
