@@ -1,0 +1,4 @@
+build/
+dist/
+cmake-build-*/
+.DS_Store

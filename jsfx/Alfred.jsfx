@@ -1,0 +1,1329 @@
+desc: Alfred
+//author: dmajorsound
+//tags: restoration denoise dereverb dialogue sfx
+//version: 0.27 beta
+//about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
+//  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
+//  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
+
+slider1:0<-60,24,0.1>-Signal (dB)
+slider2:0<-60,24,0.1>-Noise (dB)
+slider3:0<-60,24,0.1>-Reverb (dB)
+slider4:1<0,1,1{Off,On}>-Power
+slider5:0<0,7,1{None,Signal,Noise,Signal+Noise,Reverb,Signal+Reverb,Noise+Reverb,All}>-Solo
+slider6:0<0,1,1{Off,On}>-Mute Signal
+slider7:0<0,1,1{Off,On}>-Mute Noise
+slider8:0<0,1,1{Off,On}>-Mute Reverb
+slider9:0<0,1,1{Basic,Expert}>-View
+slider10:0<-12,12,0.1>-Noise Threshold (dB)
+slider11:0<-12,12,0.1>-Tonal Threshold (dB)
+slider12:0<-12,12,0.1>-Threshold 20-120 Hz (dB)
+slider13:0<-12,12,0.1>-Threshold 120-500 Hz (dB)
+slider14:0<-12,12,0.1>-Threshold 500 Hz-2 kHz (dB)
+slider15:0<-12,12,0.1>-Threshold 2-6 kHz (dB)
+slider16:0<-12,12,0.1>-Threshold 6-20 kHz (dB)
+slider17:0<0,100,0.1>-Enhance (%)
+slider18:0<0,1,1{Dark,Light}>-Theme
+slider19:0<0,3,1{None,Signal,Noise,Reverb}>-Delta
+slider20:0<0,1,1{Voice,SFX}>-Mode
+slider21:50<0,100,0.1>-Preserve Transients (%)
+
+in_pin:Left
+in_pin:Right
+out_pin:Left
+out_pin:Right
+
+@init
+ext_noinit = 1;
+gfx_ext_retina = 1;
+#verstr = "0.27 beta";
+
+// ---------------------------------------------------------------- constants
+BIG    = 10^30;
+TINY   = 10^(-20);
+OSUB   = 1.2;     // how far the ambience estimate is pushed above its mean
+CAPM   = 1.6;     // adaptive mode: a bin may stand this far above its neighborhood
+SUBW   = 8;       // sub-windows of the minimum tracker
+BIAS   = 2.89;    // bias of the minimum tracker (measured with white noise)
+PCTF   = 1.19;    // lower quartile -> mean of the tracked minima
+TSL0   = 12;      // transient safety: starts when a bin and its neighbors stand this far above the noise estimate
+TSL1   = 20;      // and is complete here
+LOGGMIN = log(0.01);   // deepest cut of the ambience part
+ZMIN   = 0.1;     // presence of signal: local / wide average of the a-priori SNR between these two
+ZMAX   = 0.316;
+RELT   = 0.02;    // seconds the gain takes to close again after a sound
+LOOKT  = 0.064;   // dialogue mode: seconds the gate looks ahead
+VHOLDT = 0.15;   // seconds it holds after the last voice frame
+VRELT  = 0.25;    // seconds it takes to close
+VTH    = 0.33;     // dialogue mode: how clearly a pitch must show for a frame to count as voiced
+VSNRH  = 2.5;     // ... and what it needs to stay open once a voice is there
+VSNR   = 3;       // ... and how far the 80 Hz - 3.5 kHz band must stand above the noise estimate (power ratio)
+INDLO  = 0.7;     // dialogue mode: share of the steady-noise reduction that also works inside the voice, below 1 kHz
+INDHI  = 1.0;     // ... and above 3 kHz, where hiss sits and the voice has little besides its S sounds
+DDT    = 0.08;    // seconds of memory in the signal-to-noise estimate
+LSAK   = 0.5;     // 0.5 = log-spectral gain (gentle on noise next to signal), 0 = Wiener gain (cleans harder)
+ZFK    = 2;       // weight of the quick view against the slow one
+QMAX   = 0.95;
+WPK    = 16;      // dialogue mode, room filter: frames of the past it listens to
+WPD    = 4;       // ... and how many frames it stays away from the present (4 = no overlap with the current frame)
+WPA    = 0.9995;  // ... its memory (per update)
+WPV    = 0.6;     // ... smoothing of the level it weights its learning with
+WPP    = 0.1;       // ... how readily a fresh filter starts to act (smaller = more cautious during its first seconds)
+WPG    = 4;       // ... it only learns where the last frames stood this far above the noise estimate (power ratio)
+WPS    = 4;       // ... every bin is updated on every WPS-th frame (must be a power of two)
+WHN    = 32;      // frames of spectrum history kept for it (a power of two, at least WPD+WPK)
+ENHMAX = 9;       // Enhance, dialogue mode: the most it moves a band at 100 % (dB)
+ENLR   = 0.375;   // Enhance, voice mode: evens out the level of the words - share of a level difference it takes back (1.6:1)
+ENLMAX = 4;       // ... by at most this many dB up or down at 100 %
+ENB    = 23;      // ... third-octave bands from 80 Hz
+PBIAS  = 1.5;       // learned print: the average that was measured, times this
+RVMAX  = 0.97;    // most of a tail the reverb part may claim
+RVPOST = 0.9;     // dialogue mode: after the voice, at least this share of whatever is dying away goes to the Reverb part
+RVIN   = 0.6;     // dialogue mode: share of the reverb estimate used while the voice sounds
+RVTH   = 0.35;    // the reverb part only claims sound that is decaying about as slowly as the room
+
+function alloc(n) local(p) ( p = mp; mp += n; memset(p, 0, n); p; );
+// FFT buffers must not straddle a 65536-slot memory block
+function alloc_fft(n) ( floor(mp/65536) != floor((mp+n-1)/65536) ? mp = (floor(mp/65536)+1)*65536; alloc(n); );
+function db2g(d) ( d <= -59.95 ? 0 : exp(d*0.11512925464970229); );
+// exponential integral E1 (series below 1, rational approximation above)
+function expint1(v) ( v < 1 ? -log(v) - 0.5772156649 + v - v*v*0.25 + v*v*v*0.0555555556 - v*v*v*v*0.0104166667
+                            : exp(-v)/v*(v*v + 2.334733*v + 0.250621)/(v*v + 3.330657*v + 1.681534); );
+
+// How tonal is each bin of a noise estimate? Compares it with the lower quartile of its neighborhood
+// (the smooth floor): 0 = part of the floor, 1 = a peak. Works on a slice of bins, so the cost spreads over frames.
+function tonal_slice(src, dst, k0, cnt) local(k, w, lo, cw, i, j, t, base)
+(
+  k = k0;
+  loop(max(0, min(cnt, nb-k0)),
+    w = min(nbw, max(2, floor(k*0.5)));
+    lo = max(0, k-w); cw = min(nb-1, k+w)-lo+1;
+    i = 0;
+    loop(cw,
+      t = src[lo+i]; j = i;
+      while (j > 0 && qtmp[j-1] > t) ( qtmp[j] = qtmp[j-1]; j -= 1; );
+      qtmp[j] = t;
+      i += 1;
+    );
+    base = min(src[k], qtmp[floor(cw*0.25)]*PCTF*CAPM) + TINY;
+    dst[k] = src[k] > 0.5*BIG ? 0 : max(0, min(1, (src[k]/base - 1.5)/1.5));
+    k += 1;
+  );
+);
+
+// five band thresholds on fixed ranges: 20-120 Hz, 120-500 Hz, 500 Hz-2 kHz, 2-6 kHz, 6-20 kHz.
+// Each one shifts the noise estimate in its range; at the edges they cross over within a tenth of an octave.
+function band_step(lf, edge) ( max(0, min(1, (lf - edge + 0.05)/0.1)); );
+function band_db(f) local(lf)
+(
+  lf = log(max(f, 1))*1.442695;
+  slider12 + (slider13-slider12)*band_step(lf, 6.907) + (slider14-slider13)*band_step(lf, 8.966)
+           + (slider15-slider14)*band_step(lf, 10.966) + (slider16-slider15)*band_step(lf, 12.551);
+);
+// ---- tone or noise? Decided by how steady a bin is over time, not by how it stands out from its neighbours:
+// the level of noise jumps from frame to frame (its spread is about as large as its average), a hum or a whine
+// holds its level. That also finds a dense row of hum harmonics, which has no quiet neighbours to stand out from.
+// m1, m2: average of the level and of its square (left channel). thr: spread/average below which it is a tone.
+function steady_weight(m1, m2, thr) local(v)
+(
+  v = sqrt(max(0, m2 - m1*m1))/(m1 + TINY);
+  max(0, min(1, (thr - v)/0.4));
+);
+// both join the neighbour test (tonal_slice): a bin counts as a tone if either test says so
+function steady_print(k0, cnt) local(k) ( k = k0; loop(max(0, min(cnt, nb-k0)), ptw[k] = max(ptw[k], pst[k]); k += 1; ); );
+function steady_adapt(k0, cnt) local(k)
+(
+  k = k0;
+  loop(max(0, min(cnt, nb-k0)), acn[k] >= 80 ? atw[k] = max(atw[k], steady_weight(am1[k], am2[k], 0.7)); k += 1; );
+);
+// noise estimates with the thresholds applied: smooth floor * noise threshold, peaks * tonal threshold, both * band threshold
+function eff_range(k0, cnt) local(k, t)      // learned print
+(
+  k = k0;
+  loop(max(0, min(cnt, nb-k0)), t = ptw[k]; eff[k] = prof[k]*PBIAS*(thn*(1-t) + tht*t)*bwt[k]; k += 1; );
+);
+function anz_range(k0, cnt) local(k, t)      // adaptive estimate
+(
+  k = k0;
+  loop(max(0, min(cnt, nb-k0)), t = atw[k]; anz[k] = min(BIG, BIAS*amin[k]*(thn*(1-t) + tht*t)*bwt[k]); k += 1; );
+);
+function build_profile() local(k, hz)
+(
+  hz = srate/NL;
+  k = 0; loop(nb, bwt[k] = exp(band_db(k*hz)*0.2302585093); k += 1; );
+  eff_range(0, nb);
+  wclosed ? anz_range(0, nb);
+);
+
+// ---- Enhance. Sound FX mode: a fixed curve, a low cut below about 140 Hz and a little more body around 200 Hz.
+function enhance_db(f) local(x)
+(
+  x = log(max(f, 10)/210)*1.442695/0.55;
+  (f < 100 ? -12 : f < 150 ? -12*(150-f)/50 : 0) + 3*exp(-x*x);
+);
+// Dialogue mode: the plug-in listens to the long-term tone of the Signal part while a voice sounds (23 third-octave
+// bands, 80 Hz to 13 kHz) and compares it with the average tone of clean, closely miked studio speech (ENT, set in
+// @init). Enhance at 100 % moves the voice onto that tone, by at most ENHMAX dB per band, and cuts below 140 Hz.
+// A boomy or boxy room recording loses its excess around 150-400 Hz, a dull one gains presence and air.
+function enh_rebuild() local(b, k, ref, n, c, pos, efq, cf, i, x)
+(
+  mode_fx ? (
+    k = 0; loop(nb, enhc[k] = enhance_db(k*enhz); k += 1; );
+  ) : (
+    ref = 0; n = 0; b = 0;
+    loop(ENB, (b >= 4 && b <= 17) ? ( ref += 10*log10(elt[b] + TINY); n += 1; ); b += 1; );
+    ref /= n; cf = min(1, ecount/100);
+    b = 0;
+    loop(ENB,
+      // above 4 kHz it only ever adds (it must not make a voice duller)
+      c = (b >= 3 && ecount >= 20) ? max(b >= 17 ? -1.5 : -ENHMAX, min(ENHMAX, ENT[b] - (10*log10(elt[b] + TINY) - ref)))*cf : 0;
+      ecr[b] = c; b += 1;
+    );
+    b = 0; loop(ENB, ecs[b] = 0.25*ecr[max(0, b-1)] + 0.5*ecr[b] + 0.25*ecr[min(ENB-1, b+1)]; b += 1; );
+    // keep the loudness: what the curve takes from or adds to the voice as a whole is given back (at most 4 dB)
+    c = 0; n = 0; b = 3;
+    loop(ENB-3, x = elt[b]*ewid[b]; c += x*exp(ecs[b]*0.2302585093); n += x; b += 1; );
+    c = n > 0 ? max(-4, min(4, -10*log10(max(c/n, 0.01)))) : 0;
+    b = 3; loop(ENB-3, ecs[b] = min(ENHMAX, ecs[b] + c); b += 1; );
+    k = 0;
+    loop(nb,
+      efq = k*enhz;
+      pos = 3*log(max(efq, 1)/80)*1.442695041;
+      x = pos <= 2 ? 0 : pos < 3 ? ecs[3]*(pos-2) : pos >= ENB-1 ? ecs[ENB-1] : ( i = floor(pos); ecs[i] + (ecs[i+1]-ecs[i])*(pos-i) );
+      enhc[k] = (efq < 100 ? -12 : efq < 150 ? -12*(150-efq)/50 : 0) + x;
+      k += 1;
+    );
+  );
+  emode = mode_fx;
+);
+function prop_smooth(src, dst, rel, wmin) local(k, w, lo, hi, acc)
+(
+  acc = 0; k = 0; loop(nb, csum[k] = acc; acc += src[k]; k += 1; ); csum[nb] = acc;
+  k = 0;
+  loop(nb,
+    w = max(wmin, floor(k*rel)); lo = max(0, k-w); hi = min(nb-1, k+w);
+    dst[k] = (csum[hi+1]-csum[lo])/(hi-lo+1);
+    k += 1;
+  );
+);
+// ---- room filter (dialogue mode). For every bin between 80 Hz and 10 kHz a short filter learns to predict
+// the present spectrum from spectra that are 43 ms and more in the past. What it can predict is the room
+// answering to sound that has already happened: late reverb. That prediction is taken out of the spectrum and
+// handed to the Reverb part as it is, so Signal + Noise + Reverb still add up to the input exactly.
+// It is a plain linear filter per bin (recursive least squares, weighted by the level of the dry sound), so it
+// works underneath a running voice too and leaves no gating or musical-noise artifacts of its own.
+function wpe_reset() local(b, i)
+(
+  memset(wgl, 0, wn*2*WPK); memset(wgr, 0, wn*2*WPK); memset(wpl, 0, wn*2*WPK*WPK); memset(wpr, 0, wn*2*WPK*WPK);
+  memset(wvl, 0, wn); memset(wvr, 0, wn); memset(wtl, 0, wn); memset(wtr, 0, wn);
+  b = 0; loop(wn, i = 0; loop(WPK, wpl[(b*WPK + i)*2*WPK + i+i] = WPP; wpr[(b*WPK + i)*2*WPK + i+i] = WPP; i += 1; ); b += 1; );
+);
+// f: spectrum of this frame (the prediction is taken out in place), h: history of this channel, g: filters,
+// pm: their matrices, lv: smoothed dry level, lt: long-term level, q: receives the prediction
+function wpe_chan(f, h, g, pm, lv, lt, q, on, upd) local(te, k, j, i, b, jj, pr, pim, xr, xi, cfr, cfi, erx, eix, lam, den, kr, ki, gp, row, acr, aci, a, ia, e0, e1, hw, gsum, st)
+(
+  j = 0; loop(WPK, wtp[j] = h + ((whp - WPD - j) & (WHN-1))*2*nb; j += 1; );
+  hw = h + whp*2*nb; ia = 1/WPA; st = WPS-1;
+  k = wk0; b = 0;
+  loop(wn,
+    jj = k+k; xr = f[jj]; xi = f[jj+1]; hw[jj] = xr; hw[jj+1] = xi;
+    on ? (
+      gp = g + b*2*WPK;
+      pr = 0; pim = 0; te = 0; j = 0;
+      loop(WPK, i = wtp[j]; acr = i[jj]; aci = i[jj+1]; wbr[j] = acr; wbi[j] = aci; te += acr*acr + aci*aci; cfr = gp[j+j]; cfi = gp[j+j+1]; pr += cfr*acr + cfi*aci; pim += cfr*aci - cfi*acr; j += 1; );
+      // the room cannot answer louder than the sound is: a prediction above the present level is scaled back to it
+      e0 = xr*xr + xi*xi; e1 = pr*pr + pim*pim;
+      e1 > e0 ? ( a = sqrt(e0/e1); pr *= a; pim *= a; );
+      erx = xr - pr; eix = xi - pim;
+      q[jj] = pr; q[jj+1] = pim; f[jj] = erx; f[jj+1] = eix;
+      lt[b] += (e0 - lt[b])*0.002;
+      e1 = erx*erx + eix*eix;
+      lam = max(e1, WPV*lv[b] + (1-WPV)*e1); lv[b] = lam;
+      lam = max(lam, 0.0001*lt[b]);
+      (upd && ((b + wph) & st) == 0 && lam > 0 && te > WPK*WPG*0.5*wna[k]) ? (
+        i = 0; den = 0;
+        loop(WPK,
+          row = pm + (b*WPK + i)*2*WPK; acr = 0; aci = 0; j = 0;
+          loop(WPK, a = row[j+j]; e0 = row[j+j+1]; cfr = wbr[j]; cfi = wbi[j]; acr += a*cfr - e0*cfi; aci += a*cfi + e0*cfr; j += 1; );
+          wqr[i] = acr; wqi[i] = aci; den += wbr[i]*acr + wbi[i]*aci;
+          i += 1;
+        );
+        den = WPA*lam + den;
+        den > 0 ? (
+          a = 1/den; gsum = 0;
+          i = 0;
+          loop(WPK,
+            kr = wqr[i]*a; ki = wqi[i]*a;
+            cfr = gp[i+i] + kr*erx + ki*eix; cfi = gp[i+i+1] + ki*erx - kr*eix; gp[i+i] = cfr; gp[i+i+1] = cfi; gsum += cfr*cfr + cfi*cfi;
+            row = pm + (b*WPK + i)*2*WPK; j = 0;
+            loop(WPK, acr = wqr[j]; aci = wqi[j]; row[j+j] = (row[j+j] - (kr*acr + ki*aci))*ia; row[j+j+1] = (row[j+j+1] - (ki*acr - kr*aci))*ia; j += 1; );
+            i += 1;
+          );
+          // a filter that has run away (or was fed something broken) starts again from nothing
+          !(gsum < 4) ? (
+            memset(gp, 0, 2*WPK); memset(pm + b*WPK*2*WPK, 0, 2*WPK*WPK);
+            i = 0; loop(WPK, pm[(b*WPK + i)*2*WPK + i+i] = WPP; i += 1; );
+          );
+        );
+      );
+    ) : ( q[jj] = 0; q[jj+1] = 0; );
+    k += 1; b += 1;
+  );
+);
+
+function frame() local(i, j, k, m, p, w, re, im, pw, sm, c, na, xi, q, v, gh, g, gsv, tot, trk, a_s, bmc, conf, frz, lrn, acc, lo, hi, zl, zg, pl, pg, pp, ps, pd, px, r, x, rh, mv, ma, gn, sS, sA, sR, sig, nsum, ssum, hb, t, ehf, pk, vsx, vsa, vsp, vsn, vt, sv, ge, mr, ind, vg, rh, wpo, dc, ql, qr, gq)
+(
+  p = pos; m = NL-1;
+  i = 0; loop(NL, j = i+i; k = (p+i)&m; w = win[i]; fL[j] = inL[k]*w; fL[j+1] = 0; fR[j] = inR[k]*w; fR[j+1] = 0; i += 1; );
+  fft(fL, NL); fft_permute(fL, NL); fft(fR, NL); fft_permute(fR, NL);
+
+  // room filter, per channel. Two identical channels are only worked out once.
+  sm = 0; tot = 0;
+  k = wk0; loop(wn, j = k+k; re = fL[j]-fR[j]; im = fL[j+1]-fR[j+1]; sm += re*re + im*im; tot += fL[j]*fL[j] + fL[j+1]*fL[j+1]; k += 1; );
+  wmono = sm <= tot*0.000000000001;
+  wpe_chan(fL, whl, wgl, wpl, wvl, wtl, wql, !mode_fx, fsil > 4 && fcount*conf_inc >= 1);
+  wmono ? (
+    memcpy(whr + whp*2*nb + 2*wk0, whl + whp*2*nb + 2*wk0, 2*wn); memcpy(fR + 2*wk0, fL + 2*wk0, 2*wn); memcpy(wqr2 + 2*wk0, wql + 2*wk0, 2*wn);
+  ) : wpe_chan(fR, whr, wgr, wpr, wvr, wtr, wqr2, !mode_fx, fsil > 4 && fcount*conf_inc >= 1);
+  whp = (whp+1) & (WHN-1); wph += 1;
+
+  // one mask for both channels: it is built from the summed power, so the stereo image cannot wander
+  tot = 0;
+  k = 0; loop(nb, j = k+k; pw = fL[j]*fL[j] + fL[j+1]*fL[j+1] + fR[j]*fR[j] + fR[j+1]*fR[j+1] + TINY; apw[k] = pw; tot += pw; k += 1; );
+  apw[-1] = apw[1]; apw[nb] = apw[nb-2];
+  lrn = pmode == 1; frz = pmode == 2;
+  lrn ? ( k = 0; loop(nb, j = k+k; pw = fL[j]*fL[j] + fL[j+1]*fL[j+1]; lacc[k] += apw[k]; lac1[k] += pw; lac2[k] += pw*pw; k += 1; ); lcount += 1; );
+  // steadiness of every bin while it sits at its noise floor (see steady_weight)
+  (wclosed && fsil > 8) ? (
+    k = 0;
+    loop(nb,
+      j = k+k; pw = fL[j]*fL[j] + fL[j+1]*fL[j+1];
+      pw < 2*BIAS*amin[k] ? ( am1[k] += (pw - am1[k])*0.0067; am2[k] += (pw*pw - am2[k])*0.0067; acn[k] += 1; );
+      k += 1;
+    );
+  );
+
+  // the tracker only looks at full frames of real signal: digital silence and
+  // the frames right after it (or after a transport start) are left out
+  tot < NL*NL*0.0000000000004 ? fsil = 0 : fsil += 1;
+  trk = fsil > 4;
+  trk ? (
+    fcount == 0 ? (
+      k = 0;
+      loop(nb,
+        lo = max(0, k-8); hi = min(nb-1, k+8); sm = 0; i = lo;
+        loop(hi-lo+1, sm += apw[i]; i += 1; );
+        ars[k] = sm/(hi-lo+1);
+        k += 1;
+      );
+    );
+    k = 0; loop(nb, sm = a_trk*ars[k] + (1-a_trk)*apw[k]; ars[k] = sm; cur[k] = min(cur[k], sm); k += 1; );
+  );
+  // a hit: the level jumps across most of the spectrum at once (every bin is compared, in a band
+  // around it, with its own last 60 ms). A voice starting to speak only jumps in part of the spectrum
+  // and does not count, so the noise in the highs is not opened along with every syllable.
+  prop_smooth(apw, tmpb, 0.12, 8);
+  fsil <= 8 ? (
+    k = 0; loop(nb, bav[k] = tmpb[k]; onk[k] = 0; k += 1; );
+    ons = 0;
+  ) : (
+    ehf = 0;
+    k = 0;
+    loop(nb,
+      x = tmpb[k]/(bav[k] + TINY);
+      x > 1.6 ? ehf += 1;
+      // per band: a clear jump of this band alone (a kick, a hi-hat) also counts, when Preserve Transients is above 50 %
+      onk[k] = max(onk[k]*0.6, max(0, min(1, (x-2.5)/1.5))*tr_loc);
+      bav[k] += (tmpb[k]-bav[k])*c_eavg;
+      k += 1;
+    );
+    ons = max(ons*0.6, max(0, min(1, (ehf/nb - tr_frac)/0.3))*tr_glob);
+  );
+  bmc = wclosed ? BIAS : 1;
+  conf = min(1, fcount*conf_inc);
+
+  // pass 1: noise estimate, a-priori SNR, gain under "signal present"
+  nsum = 0; vsx = 0; vsa = 0; vsp = 0; vsn = 0;
+  k = 0;
+  loop(nb,
+    pw = apw[k];
+    // the adaptive estimate glides to its new value instead of stepping
+    // (the running minimum takes the same thresholds as the estimate: noise threshold on the floor, tonal on the tones)
+    x = atw[k]; c = min(anz[k], bmc*cur[k]*(thn*(1-x) + tht*x)*bwt[k])*conf;
+    anzs[k] += (c - anzs[k])*c_slew;
+    na = (frz ? eff[k] : anzs[k])*OSUB + TINY; wna[k] = na;
+    nsum += na;
+    q = pw/na;
+    xi = a_dd*ghp[k]*ghp[k]*gmp[k] + (1-a_dd)*max(q-1, 0);
+    // transient safety: a bin that jumps far above the noise estimate, together with its
+    // neighbors, is let through at once instead of waiting for the smoothed estimate
+    x = (0.25*apw[k-1] + 0.5*pw + 0.25*apw[k+1])/na;
+    x > TSL0 ? xi = max(xi, min(1, (x-TSL0)*tsr)*(q-1));
+    xi = max(xi, max(ons, onk[k])*(q-1));
+    xi = max(xi, 0.001);
+    v = q*xi/(1+xi);
+    gh = min(1, xi/(1+xi)*exp(LSAK*expint1(max(v, 0.00000001))));
+    ghp[k] = gh; gmp[k] = min(q, 1000);
+    txi[k] = xi; tvv[k] = v;
+    (k >= kv0 && k <= kv1) ? ( x = sqrt(max(pw-na, 0)); tvx[k] = x; vsx += x; vsa += abs(x); vsp += pw; vsn += na; );
+    zfa[k] = a_z*zfa[k] + (1-a_z)*xi;
+    cb[k+k] = log(max(q-1, 0.00316)); cb[k+k+1] = 0;
+    k += 1;
+  );
+
+  // pass 2: is there signal here at all? The instantaneous SNR is smoothed in the cepstrum: its coarse
+  // shape and a pitch that is present follow quickly, everything else is averaged over about 200 ms.
+  // Stray bins of noise disappear in that average, so they are not taken for signal (that is what would chirp).
+  k = 1; loop(nb-2, j = (NL-k)*2; cb[j] = cb[k+k]; cb[j+1] = 0; k += 1; );
+  fft(cb, NL); fft_permute(cb, NL);
+  pk = cq0; x = cb[cq0+cq0];
+  k = cq0; loop(cq1-cq0, cb[k+k] > x ? ( x = cb[k+k]; pk = k; ); k += 1; );
+  x = x*cnorm > 0.15;      // a clear pitch
+  k = 0;
+  loop(nb,
+    c = cb[k+k]*cnorm;
+    v = (x && abs(k-pk) <= cpw) ? ca_fast : cac[k];
+    cal[k] = 0.96*cal[k] + 0.04*v;
+    cepi ? cbar[k] += (1-cal[k])*(c - cbar[k]) : cbar[k] = c;
+    cb[k+k] = cbar[k]; cb[k+k+1] = 0;
+    k += 1;
+  );
+  cepi = 1;
+  k = 1; loop(nb-2, j = (NL-k)*2; cb[j] = cb[k+k]; cb[j+1] = 0; k += 1; );
+  fft(cb, NL); fft_permute(cb, NL);
+  // signal is only taken as present where the slow, smoothed view and a quick view (30 ms) agree:
+  // the slow one keeps stray noise bins out, the quick one closes again right after the sound ends
+  acc = 0; k = 0; loop(nb, v = min(exp(min(30, cb[k+k]))*3, zfa[k]*ZFK); zet[k] = v; csum[k] = acc; acc += v; k += 1; ); csum[nb] = acc;
+  ssum = 0;
+  k = 0;
+  loop(nb,
+    lo = max(0, k-2); hi = min(nb-1, k+2); zl = (csum[hi+1]-csum[lo])/(hi-lo+1);
+    w = max(8, floor(k*0.12)); lo = max(0, k-w); hi = min(nb-1, k+w); zg = (csum[hi+1]-csum[lo])/(hi-lo+1);
+    pl = max(0, min(1, log(zl/ZMIN + TINY)*zscale)); pg = max(0, min(1, log(zg/ZMIN + TINY)*zscale));
+    q = min(QMAX, 1 - pl*pg);
+    x = zet[k]; v = gmp[k]*x/(1+x);
+    pp = max(max(ons, onk[k]), 1/(1 + q/(1-q)*(1+x)*exp(-min(v, 50))));
+    g = exp(pp*log(ghp[k] + TINY) + (1-pp)*LOGGMIN);
+    // the gain may open at once and closes over about 60 ms
+    gsv = max(g, a_rel*gsm[k] + (1-a_rel)*g);
+    gsm[k] = gsv;
+    pw = gsv*gsv*apw[k];
+    tmpa[k] = pw; ssum += pw;
+    k += 1;
+  );
+
+  // pass 3: reverb. Looks at the smoothed spectrum of what is not ambience, compares it with
+  // itself 50 ms earlier and learns how slowly the room lets sound die away (per frequency).
+  prop_smooth(tmpa, tmpb, 0.08, 2);
+  hb = hist + hwr*nb;
+  sS = 0; sA = 0; sR = 0;
+  k = 0;
+  loop(nb,
+    px = tmpb[k];
+    ps = psr[k]; ps = px > ps ? px : a_rv*ps + (1-a_rv)*px; psr[k] = ps;
+    pd = hb[k]; hb[k] = ps;
+    pkr[k] = max(ps, a_pk*pkr[k]);
+    q = ps/(pd + TINY);
+    (q < 0.95 && q > 0.03 && pd > 0.001*pkr[k]) ? kap[k] = max(kapmin, min(kapmax, kap[k] + (q > kap[k] ? 0.0034 : -0.0006)));
+    x = kap[k]*pd/(ps + TINY);
+    r = max(0, min(1, (x-RVTH)/(1-RVTH)))*RVMAX;
+    rh = rho[k]; rh = r < rh ? r : a_rise*rh + (1-a_rise)*r; rho[k] = rh;
+    rdc[k] = q < 0.9 ? 1 : 0;
+    k += 1;
+  );
+  hwr += 1; hwr >= rvd ? hwr = 0;
+
+  // is this frame voiced? The noise-reduced spectrum between 80 Hz and 3.5 kHz is searched for the regular
+  // ripple of a pitch (75 - 350 Hz). It counts when the ripple is clear, the band stands above the noise,
+  // and the pitch stays put over three frames. Steps, rustle, clicks and hum do not pass.
+  x = vsx/max(1, kv1-kv0+1);
+  k = 0; loop(nb, cb[k+k] = (k >= kv0 && k <= kv1) ? tvx[k]-x : 0; cb[k+k+1] = 0; k += 1; );
+  k = 1; loop(nb-2, j = (NL-k)*2; cb[j] = cb[k+k]; cb[j+1] = 0; k += 1; );
+  fft(cb, NL); fft_permute(cb, NL);
+  pk = vq0; x = cb[vq0+vq0];
+  k = vq0; loop(vq1-vq0, cb[k+k] > x ? ( x = cb[k+k]; pk = k; ); k += 1; );
+  v = (x/(2*vsa + TINY) > VTH && vsp > VSNR*vsn) ? 1 : 0;
+  vrun = (v && vprev && abs(pk-vlag) <= 0.08*pk) ? vrun+1 : 0;
+  vprev = v; vlag = pk;
+
+  // hand the frame to the look-ahead line: spectra, the two masks and the voiced flag
+  hb = rgs + rw*nb; t = rrh + rw*nb; q = rpw + rw*nb; c = rgl + rw*2*nb; w = rgr + rw*2*nb;
+  memcpy(rql + rw*2*nb, wql, 2*nb); memcpy(rqr + rw*2*nb, wqr2, 2*nb);
+  k = 0;
+  loop(nb,
+    j = k+k;
+    hb[k] = gsm[k]; t[k] = rho[k] + 2*rdc[k]; q[k] = apw[k];
+    c[j] = fL[j]; c[j+1] = fL[j+1]; w[j] = fR[j]; w[j+1] = fR[j+1];
+    k += 1;
+  );
+  // once a voice is there, the gate also stays open through its unvoiced and weaker stretches,
+  // as long as the band keeps standing above the noise (for at most 0.6 s without a clear pitch)
+  vrun >= 2 ? vsince = 0 : vsince += 1;
+  vact = (vrun >= 2 || (vact && vsince < vsust*rvt && vsp > VSNRH*vsn)) ? 1 : 0;
+  rvk[rw] = vact;
+  rvs[rw] = vrun >= 2 ? 1 : 0;
+  rto[rw] = ons;
+  rw += 1; rw > lk ? rw = 0;
+
+  // minimum tracker: close a sub-window
+  trk ? ( fcount += 1; subc += 1; );
+  subc >= subv ? (
+    subc = 0;
+    hb = sub + subi*nb;
+    k = 0; loop(nb, hb[k] = cur[k]; cur[k] = ars[k]; k += 1; );
+    subi += 1; subi >= SUBW ? subi = 0;
+    k = 0;
+    loop(nb,
+      c = sub[k]; i = 1;
+      loop(SUBW-1, c = min(c, sub[i*nb+k]); i += 1; );
+      amin[k] = c;
+      k += 1;
+    );
+    // the tonal weights of the new minimum follow over the next frames, a slice at a time
+    ajob = 0;
+    wclosed = 1;
+  );
+  ajob < nb ? ( tonal_slice(amin, atw, ajob, jstep); steady_adapt(ajob, jstep); anz_range(ajob, jstep); ajob += jstep; );
+  pjob < nb ? ( tonal_slice(prof, ptw, pjob, jstep); pst_ok ? steady_print(pjob, jstep); eff_range(pjob, jstep); pjob += jstep; );
+
+  // ---- synthesis of the oldest frame in the line. In dialogue mode the voice decision for it already
+  // knows the frames after it, so the gate opens before the first voiced frame and unvoiced starts survive.
+  vt = 0; k = 0; loop(lk+1, rvk[k] ? vt = 1; k += 1; );
+  vt ? vdist = 0 : vdist += 1;
+  vt = vdist <= vhold*rvt ? 1 : max(0, 1 - (vdist-vhold*rvt)/max(2, vrel*rvt));
+  vv += max(-1, min(0.5, vt - vv));
+  mode_fx ? vv = 1;
+  // a preserved hit passes the gate too (the frame itself and its neighbors in the line)
+  // in dialogue mode a hit only opens the gate when Preserve Transients is above 50 %
+  vg = max(vv, rto[rw]*(mode_fx ? 1 : tr_loc));
+  // dialogue mode, reverb: while the voice sounds, only a careful share of what decays is taken for reverb, so the
+  // voice itself is not thinned out. Once the voiced sound has stopped, whatever keeps decaying is the room: it
+  // then belongs to the Reverb part entirely. Parts that rise again (a final S or T) stay with the Signal.
+  rvs[rw] ? vpost = 0 : vpost += 1;
+  wpo = mode_fx ? -1 : min(1, vpost/2);
+  // dialogue mode goes easy on the spectrum while the voice sounds - unless a noise print was learned:
+  // then the noise is known exactly and is taken out in full, under the voice too
+  ind = mode_fx || pmode == 2;
+  hb = rgs + rw*nb; t = rrh + rw*nb; q = rpw + rw*nb; c = rgl + rw*2*nb; w = rgr + rw*2*nb;
+  ql = rql + rw*2*nb; qr = rqr + rw*2*nb;
+  memset(eacc, 0, ENB+1);
+  sS = 0; sA = 0; sR = 0;
+  k = 0;
+  loop(nb,
+    gsv = hb[k]; pw = q[k];
+    // everything that is not voice is noise in dialogue mode; inside the voice the spectral cut is gentler
+    // (a bin the noise estimate holds a steady tone in - hum, a whine - is taken out in full under the voice too)
+    sv = vg*(1 - (1-gsv)*(ind ? 1 : max(indc[k], atw[k])));
+    rh = t[k]; dc = rh >= 2; dc ? rh -= 2;
+    wpo >= 0 ? rh = (1-wpo)*rh*RVIN + wpo*max(min(1, rh*rvpk), dc*RVPOST);
+    mv = sv*sqrt(1-rh);
+    mr = sv - mv;
+    ma = 1 - sv;
+    x = exp((enhc[k]*enh_amt + glev)*0.1151292546);
+    g = (gSd ? 1 - (1-gS)*x : gS*x)*mv;
+    gn = g + gR*mr + gA*ma;
+    j = k+k;
+    // what the room filter predicted belongs to the Reverb part - except for the share of the bin that is noise:
+    // a filter also 'predicts' a little of any noise, and that has to follow the Noise fader, or it would stay in
+    gq = gR + (gA-gR)*ma;
+    re = c[j]*gn + gq*ql[j]; im = c[j+1]*gn + gq*ql[j+1]; fL[j] = re; fL[j+1] = im;
+    (k > 0 && k < nb-1) ? ( i = (NL-k)*2; fL[i] = re; fL[i+1] = -im; );
+    re = w[j]*gn + gq*qr[j]; im = w[j+1]*gn + gq*qr[j+1]; fR[j] = re; fR[j+1] = im;
+    (k > 0 && k < nb-1) ? ( i = (NL-k)*2; fR[i] = re; fR[i+1] = -im; );
+    v = g*g*pw; dS[k] += (v-dS[k])*0.25; sS += v;
+    eacc[ebi[k]] += mv*mv*pw;
+    x = ql[j]*ql[j] + ql[j+1]*ql[j+1] + qr[j]*qr[j] + qr[j+1]*qr[j+1];
+    v = gA*ma; v = v*v*(pw+x); dA[k] += (v-dA[k])*0.25; sA += v;
+    v = gR*mr; v = v*v*pw + gR*gR*(1-ma)*(1-ma)*x; dR[k] += (v-dR[k])*0.25; sR += v;
+    dI[k] += (pw+x-dI[k])*0.25;
+    k += 1;
+  );
+  lvS += (sS-lvS)*0.3; lvA += (sA-lvA)*0.3; lvR += (sR-lvR)*0.3;
+  // Enhance: the long-term tone of the Signal part, taken only while the voice gate is open
+  x = 0; k = 0; loop(ENB, x += eacc[k]; k += 1; );
+  (!mode_fx && vg > 0.5 && x > 0) ? (
+    ecount += 1; v = max(1/ecount, 0.002);
+    k = 0; loop(ENB, elt[k] += (eacc[k]/ewid[k] - elt[k])*v; k += 1; );
+    // level of the words: a quick view (60 ms) against the long-term average of the voice (in dB)
+    lsh += (x - lsh)*0.16;
+    v = 10*log10(lsh + TINY);
+    llg = ecount <= 1 ? v : llg + (v - llg)*max(1/ecount, 0.0035);
+    v -= llg;
+    // louder words come down a little, quieter ones up; what lies far below the voice (breaths, tails) is left alone
+    v = (v < -15 || ecount < 40) ? 0 : max(-ENLMAX, min(ENLMAX, -ENLR*v));
+    glev += (v*enh_amt - glev)*0.2;
+  ) : (
+    glev *= 0.9;
+  );
+  ((fcount & 15) == 0 || emode != mode_fx) ? enh_rebuild();
+
+  fft_ipermute(fL, NL); ifft(fL, NL); fft_ipermute(fR, NL); ifft(fR, NL);
+  i = 0; loop(NL, j = (p+i)&m; w = win[i]*onorm; outL[j] += fL[i+i]*w; outR[j] += fR[i+i]*w; i += 1; );
+);
+
+// ---------------------------------------------------------------- setup
+// decodes the bitmap of the dmajorsound mark (text of 0-f) into memory
+function ldec(str, dst, n) local(i, c)
+(
+  i = 0;
+  loop(n,
+    c = str_getchar(str, i);
+    dst[i] = c <= '9' ? c - '0' : c - 'a' + 10;
+    i += 1;
+  );
+);
+function setup() local(i, ht, frt, hz)
+(
+  mp = 0;
+  NL = srate < 50000 ? 2048 : srate < 100000 ? 4096 : 8192;
+  nb = NL/2+1; hop = NL/4;
+  ht = hop/srate; frt = srate/hop; hz = srate/NL;
+  uim = alloc(64); qtmp = alloc(512);
+  inL = alloc(NL); inR = alloc(NL); outL = alloc(NL); outR = alloc(NL); win = alloc(NL);
+  fL = alloc_fft(2*NL); fR = alloc_fft(2*NL); cb = alloc_fft(2*NL);
+  cbar = alloc(nb); cal = alloc(nb); cac = alloc(nb); zfa = alloc(nb);
+  apw = alloc(nb+2)+1; ars = alloc(nb); cur = alloc(nb); amin = alloc(nb); sub = alloc(nb*SUBW);
+  anz = alloc(nb); anzs = alloc(nb); prof = alloc(nb); lacc = alloc(nb); eff = alloc(nb); bwt = alloc(nb); atw = alloc(nb); ptw = alloc(nb);
+  lac1 = alloc(nb); lac2 = alloc(nb); pst = alloc(nb); pst_ok = 0; am1 = alloc(nb); am2 = alloc(nb); acn = alloc(nb);
+  ghp = alloc(nb); gmp = alloc(nb); zet = alloc(nb); csum = alloc(nb+2); gsm = alloc(nb); txi = alloc(nb); tvv = alloc(nb);
+  tmpa = alloc(nb); tmpb = alloc(nb); bav = alloc(nb); onk = alloc(nb);
+  rvd = max(1, floor(0.05*frt+0.5));
+  psr = alloc(nb); hist = alloc(nb*rvd); kap = alloc(nb); rho = alloc(nb); pkr = alloc(nb);
+  enhz = hz; ebi = alloc(nb); eacc = alloc(ENB+1); elt = alloc(ENB); ewid = alloc(ENB); ecr = alloc(ENB); ecs = alloc(ENB); ENT = alloc(ENB);
+  // average tone of clean close-miked speech per third-octave band (dB, mean power per Hz, relative to its 200 Hz - 4 kHz mean)
+  ENT[0] = 0; ENT[1] = 0; ENT[2] = 0; ENT[3] = 2.5; ENT[4] = 7.5; ENT[5] = 7.5; ENT[6] = 6.5; ENT[7] = 8.5; ENT[8] = 7.5; ENT[9] = 5.5; ENT[10] = 2.3; ENT[11] = -0.5; ENT[12] = -3.8; ENT[13] = -5.5; ENT[14] = -9.3; ENT[15] = -11.8; ENT[16] = -14.2; ENT[17] = -16.2; ENT[18] = -19.3; ENT[19] = -22.0; ENT[20] = -25.0; ENT[21] = -28.5; ENT[22] = -33.0;
+  i = 0; loop(nb, j = floor(3*log(max(i*hz, 1)/80)*1.442695041 + 0.5); j = (j >= 0 && j < ENB) ? j : ENB; ebi[i] = j; j < ENB ? ewid[j] += 1; i += 1; );
+  i = 0; loop(ENB, ewid[i] = max(1, ewid[i]); i += 1; );
+  ecount = 0; emode = -1; lsh = 0; llg = 0; glev = 0;
+  enhc = alloc(nb); tvx = alloc(nb); indc = alloc(nb); rdc = alloc(nb);
+  lk = max(1, floor(LOOKT*frt+0.5)); vhold = floor(VHOLDT*frt+0.5); vrel = max(1, floor(VRELT*frt+0.5));
+  rgs = alloc(nb*(lk+1)); rrh = alloc(nb*(lk+1)); rpw = alloc(nb*(lk+1)); rgl = alloc(2*nb*(lk+1)); rgr = alloc(2*nb*(lk+1)); rvk = alloc(lk+2); rto = alloc(lk+2); rvs = alloc(lk+2);
+  xlen = lk*hop; xdl = alloc(xlen); xdr = alloc(xlen); xp = 0;
+  kv0 = max(1, ceil(80/hz)); kv1 = min(nb-2, floor(3500/hz)); vq0 = floor(srate/350); vq1 = min(nb-1, floor(srate/75));
+  rvpk = 1/(RVMAX*0.5); vpost = 0; vfall = 0; vlev = 0; vfalln = max(2, floor(0.053*frt+0.5));
+  rw = 0; vdist = 100000; vv = 0; vrun = 0; vprev = 0; vlag = 0; vact = 0; vsince = 100000; vsust = floor(0.6*frt);
+  wk0 = max(2, ceil(80/hz)); wk1 = min(nb-2, floor(10000/hz)); wn = wk1-wk0+1;
+  whl = alloc(WHN*2*nb); whr = alloc(WHN*2*nb); whp = 0; wph = 0;
+  wgl = alloc(wn*2*WPK); wgr = alloc(wn*2*WPK); wpl = alloc(wn*2*WPK*WPK); wpr = alloc(wn*2*WPK*WPK);
+  wvl = alloc(wn); wvr = alloc(wn); wtl = alloc(wn); wtr = alloc(wn);
+  wtp = alloc(WPK); wbr = alloc(WPK); wbi = alloc(WPK); wqr = alloc(WPK); wqi = alloc(WPK);
+  m_lg1 = alloc(lgw1*lgh1); ldec(#lg1, m_lg1, lgw1*lgh1); m_lg2 = alloc(lgw2*lgh2); ldec(#lg2, m_lg2, lgw2*lgh2);
+  wna = alloc(nb); wql = alloc(2*nb); wqr2 = alloc(2*nb); rql = alloc(2*nb*(lk+1)); rqr = alloc(2*nb*(lk+1));
+  wpe_reset();
+  dI = alloc(nb); dS = alloc(nb); dA = alloc(nb); dR = alloc(nb);
+  i = 0; loop(NL, win[i] = 0.5-0.5*cos(2*$pi*i/NL); i += 1; );
+  i = 0; loop(nb, cur[i] = BIG; amin[i] = BIG; anz[i] = BIG; bwt[i] = 1; ghp[i] = 1; gmp[i] = 1; gsm[i] = 1; zet[i] = 1; enhc[i] = enhance_db(i*hz); indc[i] = INDLO + (INDHI-INDLO)*max(0, min(1, log(max(i*hz, 1)/1000)/log(3))); i += 1; );
+  i = 0; loop(nb*SUBW, sub[i] = BIG; i += 1; );
+  kapmin = exp(-2*(6.908/0.35)*rvd*ht); kapmax = exp(-2*(6.908/3)*rvd*ht);
+  i = 0; loop(nb, kap[i] = exp(-2*(6.908/0.7)*rvd*ht); i += 1; );
+  onorm = 1/(1.5*NL);
+  a_trk = exp(-ht/0.05); subv = max(2, floor(0.25*frt+0.5)); conf_inc = 1/(0.35*frt);
+  c_slew = 1-exp(-ht/0.12);
+  c_eavg = 1-exp(-ht/0.06); ons = 0;
+  a_dd = exp(-ht/DDT); a_rel = exp(-ht/RELT); a_z = exp(-ht/0.03);
+  // cepstral smoothing: envelope (below 0.375 ms) and pitch fast, the middle medium, the fine structure slow
+  ca_fast = exp(log(0.2)*ht/0.016);
+  i = 0; loop(nb, cac[i] = i/srate < 0.000375 ? ca_fast : i/srate < 0.0024 ? exp(log(0.4)*ht/0.016) : exp(log(0.92)*ht/0.016); cal[i] = cac[i]; i += 1; );
+  cq0 = floor(srate/400); cq1 = min(nb-1, floor(srate/70)); cpw = max(1, floor(4*srate/48000+0.5)); cnorm = 1/NL; cepi = 0;
+  zscale = 1/log(ZMAX/ZMIN); tsr = 1/(TSL1-TSL0);
+  a_rv = exp(-ht/0.02); a_rise = exp(-ht/0.04); a_pk = exp(-ht/2);
+  nbw = max(2, floor(280*NL/srate+0.5));
+  jstep = ceil(nb/max(1, subv-4)); ajob = nb; pjob = nb; 
+  pos = 0; hopc = 0; fcount = 0; fsil = 0; subc = 0; subi = 0; hwr = 0; wclosed = 0; encount = 0; lcount = 0;
+  lvS = 0; lvA = 0; lvR = 0;
+  bpc = 1-exp(-1/(0.01*srate));
+  bp = slider4 >= 0.5 ? 1 : 0;
+  pdc_delay = NL + lk*hop; pdc_bot_ch = 0; pdc_top_ch = 2;
+  pmode = 0; last_key = -9999;
+  last_srate = srate;
+);
+
+function clear_audio()
+(
+  memset(inL, 0, NL); memset(inR, 0, NL); memset(outL, 0, NL); memset(outR, 0, NL);
+  memset(whl, 0, WHN*2*nb); memset(whr, 0, WHN*2*nb); memset(rql, 0, 2*nb*(lk+1)); memset(rqr, 0, 2*nb*(lk+1));
+  memset(xdl, 0, xlen); memset(xdr, 0, xlen); memset(rgl, 0, 2*nb*(lk+1)); memset(rgr, 0, 2*nb*(lk+1)); memset(rvk, 0, lk+2); memset(rto, 0, lk+2); memset(rvs, 0, lk+2); vpost = 0; vfall = 0; vlev = 0;
+  vdist = 100000; vv = 0; vrun = 0; vprev = 0; vact = 0; vsince = 100000;
+  hopc = 0; fsil = 0; ons = 0;
+);
+
+// everything the audio side derives from the sliders. Only ever called from the audio side.
+function update_params() local(so, key, dl)
+(
+  so = slider5;
+  dl = slider19;
+  dl > 0 ? (
+    // Delta: only what this fader takes away from (or adds to) its part. Output + delta = the untouched part.
+    gS = dl == 1 ? 1 - (slider6 >= 0.5 ? 0 : db2g(slider1)) : 0;
+    gA = dl == 2 ? 1 - (slider7 >= 0.5 ? 0 : db2g(slider2)) : 0;
+    gR = dl == 3 ? 1 - (slider8 >= 0.5 ? 0 : db2g(slider3)) : 0;
+    gSd = dl == 1 ? 1 : 0;
+  ) : (
+    gS = (so & 1) ? 1 : (so > 0 || slider6 >= 0.5) ? 0 : db2g(slider1);
+    gA = (so & 2) ? 1 : (so > 0 || slider7 >= 0.5) ? 0 : db2g(slider2);
+    gR = (so & 4) ? 1 : (so > 0 || slider8 >= 0.5) ? 0 : db2g(slider3);
+    gSd = 0;
+  );
+  bpt = slider4 >= 0.5 ? 1 : 0;
+  enh_amt = slider17*0.01;
+  mode_fx = slider20 >= 0.5;
+  // how much shorter the gate holds on after the voice when Reverb is turned down: 1 at 0 dB, 0.56 at -10 dB, 0.25 at the bottom
+  rvt = max(0.25, min(1, sqrt(slider8 >= 0.5 ? 0 : db2g(min(slider3, 0)))));
+  // Preserve Transients: up to 50 % the broadband hit detector comes in, above 50 % also single bands and a lower trigger
+  tr_glob = min(1, slider21*0.02); tr_loc = max(0, slider21*0.02-1); tr_frac = 0.5 - 0.2*tr_loc;
+  key = slider10 + slider11*29 + slider12*841 + slider13*24389 + slider14*707281 + slider15*20511149 + slider16*594823321;
+  (key != last_key || need_build) ? (
+    last_key = key; need_build = 0;
+    thn = exp(slider10*0.2302585093); tht = exp(slider11*0.2302585093);
+    build_profile();
+  );
+);
+
+// learn / clear, asked for by the interface and carried out here on the audio side
+function serve_requests() local(k)
+(
+  req_learn ? (
+    req_learn = 0;
+    pmode == 1 ? (
+      lcount >= 4 ? (
+        k = 0; loop(nb, prof[k] = lacc[k]/lcount; ptw[k] = 0; pst[k] = steady_weight(lac1[k]/lcount, lac2[k]/lcount, 0.8 - 1.5/sqrt(lcount)); k += 1; );
+        pst_ok = lcount >= 30;      // a third of a second or more: enough frames to tell steady from jumping
+        need_build = 1; pjob = 0; pmode = 2;
+      ) : ( pmode = 0; );
+    ) : (
+      memset(lacc, 0, nb); memset(lac1, 0, nb); memset(lac2, 0, nb); lcount = 0; pmode = 1;
+    );
+  );
+  req_clear ? ( req_clear = 0; pmode = 0; );
+);
+
+// ---- dmajorsound mark (as in Binocular)
+// The mark as a small bitmap in two sizes (1x and 2x), 16 levels of coverage per pixel (0-f),
+// so the plug-in stays one single file and the mark is drawn in the theme color.
+strcpy(#lg1, "");
+strcat(#lg1, "0000007ffffeefffffdfd810");
+strcat(#lg1, "0000008ffff84ffffc1fffe3");
+strcat(#lg1, "0000008ffff84ffffb0ffffc");
+strcat(#lg1, "0000008ffff84ffffb0fffff");
+strcat(#lg1, "0000008ffff84ffffb0fffff");
+strcat(#lg1, "0000008ffff84ffffb0fffff");
+strcat(#lg1, "0000008ffff84ffffb0fffff");
+strcat(#lg1, "0000008ffff8199996089998");
+strcat(#lg1, "0015818ffff8000000000000");
+strcat(#lg1, "05eff48ffff8000000000000");
+strcat(#lg1, "4ffff48ffff8000000000000");
+strcat(#lg1, "affff48ffff8000000000000");
+strcat(#lg1, "bffff48ffff8000000000000");
+strcat(#lg1, "9ffff48ffff8000000000000");
+strcat(#lg1, "1cfff48ffff8000000000000");
+strcat(#lg1, "017cfeeffff7000000000000");
+lgw1 = 24; lgh1 = 16;
+strcpy(#lg2, "");
+strcat(#lg2, "0000000000000bfffffffffffffffffffffffffec8400000");
+strcat(#lg2, "0000000000001ffffffffffdbfffffffffffbdfffffd6000");
+strcat(#lg2, "0000000000001ffffffffff209fffffffff902fffffffb10");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800ffffffffb0");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800fffffffff6");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800fffffffffc");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800ffffffffff");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800ffffffffff");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800ffffffffff");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800ffffffffff");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800ffffffffff");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800ffffffffff");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800ffffffffff");
+strcat(#lg2, "0000000000001ffffffffff108fffffffff800ffffffffff");
+strcat(#lg2, "0000000000001ffffffffff106fffffffff700cffffffffd");
+strcat(#lg2, "0000000000001ffffffffff1002333333330001333333331");
+strcat(#lg2, "0000000001001ffffffffff1000000000000000000000000");
+strcat(#lg2, "0000038cff501ffffffffff1000000000000000000000000");
+strcat(#lg2, "0002bfffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "005effffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "04ffffffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "0dffffffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "4fffffffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "7fffffffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "8fffffffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "7fffffffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "5fffffffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "1effffffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "05ffffffff801ffffffffff1000000000000000000000000");
+strcat(#lg2, "005effffff901ffffffffff1000000000000000000000000");
+strcat(#lg2, "0002affffffbdffffffffff1000000000000000000000000");
+strcat(#lg2, "0000027bdfffffffffffffc0000000000000000000000000");
+lgw2 = 48; lgh2 = 32;
+
+setup();
+update_params();
+
+@serialize
+ser_n = NL; ser_mode = pmode == 2 ? 2 : 0;
+file_var(0, ser_n); file_var(0, ser_mode);
+(ser_n == NL && ser_mode == 2) ? file_mem(0, prof, nb);
+// what the plug-in has learned about the room and the voice travels with the project: the room filters and the
+// long-term tone Enhance works from. A project then starts with them, instead of learning again for some seconds.
+// (older projects end here: nothing more to read, everything stays as it is)
+ser_w = file_avail(0) < 0 ? wn : 0; ser_k = file_avail(0) < 0 ? WPK : 0;
+file_var(0, ser_w); file_var(0, ser_k);
+(ser_w == wn && ser_k == WPK) ? (
+  file_mem(0, wgl, wn*2*WPK); file_mem(0, wgr, wn*2*WPK);
+  file_var(0, ecount); file_mem(0, elt, ENB);
+  emode = -1;
+);
+// the steadiness of the learned print (which bins are tones)
+ser_p = file_avail(0) < 0 ? (pst_ok ? NL : -1) : 0;
+file_var(0, ser_p);
+ser_p == NL ? ( file_mem(0, pst, nb); pst_ok = 1; ) : ( file_avail(0) >= 0 ? pst_ok = 0; );
+file_avail(0) >= 0 ? ( pmode = (ser_n == NL && ser_mode == 2) ? 2 : 0; need_build = 1; pjob = 0; );
+
+@block
+srate != last_srate ? setup();
+serve_requests();
+update_params();
+(play_state & 1) && !last_play ? clear_audio();
+last_play = play_state & 1;
+
+@sample
+d0 = xdl[xp]; d1 = xdr[xp]; xdl[xp] = inL[pos]; xdr[xp] = inR[pos]; xp += 1; xp >= xlen ? xp = 0;
+inL[pos] = spl0; inR[pos] = spl1;
+w0 = outL[pos]; w1 = outR[pos]; outL[pos] = 0; outR[pos] = 0;
+pos = (pos+1)&(NL-1);
+hopc += 1;
+hopc >= hop ? ( hopc = 0; frame(); );
+bp += (bpt-bp)*bpc;
+spl0 = d0 + (w0-d0)*bp;
+spl1 = d1 + (w1-d1)*bp;
+
+@gfx 664 652
+// Everything below runs on the interface side. It shares no function with the audio side
+// and only talks to it through the sliders and the two requests (learn, clear).
+function ucol(c, al) ( gfx_r = floor(c/65536)/255; gfx_g = (floor(c/256)%256)/255; gfx_b = (c%256)/255; gfx_a = al; );
+function upart(i) ( i == 0 ? ucSIG : i == 1 ? ucAMB : ucREV; );
+function utext(str, cx, y) local(w, h) ( gfx_measurestr(str, w, h); gfx_x = floor(cx-w/2); gfx_y = floor(y); gfx_drawstr(str); );
+function uarc(cx, cy, r, a0, a1, th) local(k, n) ( n = max(1, floor(th*2)); k = 0; loop(n, gfx_arc(cx, cy, r-k*0.5, a0, a1, 1); k += 1; ); );
+function urr(x, y, w, h, r, fill)
+(
+  x = floor(x); y = floor(y); w = floor(w); h = floor(h); r = floor(min(r, min(w, h)/2));
+  fill ? (
+    gfx_rect(x+r, y, w-2*r, h); gfx_rect(x, y+r, w, h-2*r);
+    gfx_circle(x+r, y+r, r, 1, 1); gfx_circle(x+w-r-1, y+r, r, 1, 1); gfx_circle(x+r, y+h-r-1, r, 1, 1); gfx_circle(x+w-r-1, y+h-r-1, r, 1, 1);
+  ) : gfx_roundrect(x, y, w-1, h-1, r, 1);
+);
+function uin(x, y, w, h) ( mouse_x >= x && mouse_x < x+w && mouse_y >= y && mouse_y < y+h; );
+function uinc(x, y, r) local(dx, dy) ( dx = mouse_x-x; dy = mouse_y-y; dx*dx+dy*dy <= r*r; );
+// parameters by id: 1..3 = the three parts, 40 = noise threshold, 41 = tonal threshold, 50..54 = band thresholds, 60 = enhance
+function uget(id) ( id == 1 ? slider1 : id == 2 ? slider2 : id == 3 ? slider3 : id == 40 ? slider10 : id == 41 ? slider11 : id == 50 ? slider12 : id == 51 ? slider13 : id == 52 ? slider14 : id == 53 ? slider15 : id == 54 ? slider16 : id == 60 ? slider17 : slider21; );
+function umin(id) ( id >= 60 ? 0 : id >= 40 ? -12 : -60; );
+function udef(id) ( id == 61 ? 50 : 0; );
+function umax(id) ( id >= 60 ? 100 : id >= 40 ? 12 : 24; );
+function umask(id) ( id == 61 ? 2^20 : id == 60 ? 2^16 : id >= 50 ? 2^(id-39) : id >= 40 ? 2^(id-31) : 2^(id-1); );
+function uset(id, v)
+(
+  v = max(umin(id), min(umax(id), v));
+  id == 1 ? ( slider1 = v; ) : id == 2 ? ( slider2 = v; ) : id == 3 ? ( slider3 = v; ) : id == 40 ? ( slider10 = v; ) : id == 41 ? ( slider11 = v; ) :
+  id == 50 ? ( slider12 = v; ) : id == 51 ? ( slider13 = v; ) : id == 52 ? ( slider14 = v; ) : id == 53 ? ( slider15 = v; ) : id == 54 ? ( slider16 = v; ) : id == 60 ? ( slider17 = v; ) : ( slider21 = v; );
+  slider_automate(umask(id));
+);
+// fader position 0..1. The three parts: 0 dB in the middle, -inf (shown for -60) at the bottom, +24 dB at the top.
+function upos(id) local(v)
+(
+  v = uget(id);
+  id >= 60 ? v/100 : id >= 40 ? (v+12)/24 : v >= 0 ? 0.5 + v/48 : 0.5 - 0.5*sqrt(min(1, -v/60));
+);
+function uval(id, t) local(u)
+(
+  t = max(0, min(1, t));
+  id >= 60 ? t*100 : id >= 40 ? t*24-12 : t >= 0.5 ? (t-0.5)*48 : ( u = (0.5-t)*2; -60*u*u; );
+);
+function uvalstr(id) local(v)
+(
+  v = uget(id);
+  id >= 60 ? sprintf(#uval, "%d %%", floor(v+0.5)) :
+  (id < 40 && v <= -59.95) ? strcpy(#uval, "-inf dB") :
+  abs(v) < 0.05 ? strcpy(#uval, "0.0 dB") : sprintf(#uval, "%s%.1f dB", v > 0 ? "+" : "", v);
+);
+// a vertical fader: gray track and handle, the travel from its rest position in color c
+function ufader(id, cx, y, h, c, al, wide) local(t, t0, hy, zy, tw, hw, hh)
+(
+  t = upos(id); t0 = id >= 60 ? 0 : 0.5;
+  tw = max(2, floor((wide ? 4 : 3)*usc)); hw = floor((wide ? 30 : 20)*usc); hh = floor((wide ? 12 : 9)*usc);
+  hy = y + h*(1-t); zy = y + h*(1-t0);
+  ucol(ucHAIR, 1); urr(cx-tw/2, y, tw, h, tw/2, 1);
+  ucol(c, al); gfx_rect(floor(cx-tw/2), floor(min(hy, zy)), tw, max(1, floor(abs(hy-zy))));
+  ucol(ucDIM, 1); gfx_rect(floor(cx-hw/2-3*usc), floor(zy), floor(3*usc), 1); gfx_rect(floor(cx+hw/2), floor(zy), floor(3*usc), 1);
+  ucol(ucCTL, al < 1 ? 0.5 : 1); urr(cx-hw/2, hy-hh/2, hw, hh, 3*usc, 1);
+  ucol(ucBG, 1); gfx_rect(floor(cx-hw/2+4*usc), floor(hy), floor(hw-8*usc), 1);
+);
+function upill(x, y, w, h, on, str)
+(
+  on ? ( ucol(ucACT, 1); urr(x, y, w, h, h/2, 1); ucol(ucACTO, 1); urr(x, y, w, h, h/2, 0); ucol(ucACTX, 1); )
+     : ( ucol(ucBORD, 1); urr(x, y, w, h, h/2, 0); ucol(ucMUTED, 1); );
+  utext(str, x+w/2, y+h/2-6*usc);
+);
+// a tab that stands on the header line: the open one carries a frame and runs into the page below it
+function utab(x, w, on, hot, str) local(ty, bot, r, b)
+(
+  bot = floor(46*usc); r = floor(6*usc); b = max(1, floor(1.4*usc));
+  on ? (
+    ty = floor(15*usc);
+    ucol(ucACTO, 1); urr(x, ty, w, bot-ty+r+2, r, 1);
+    ucol(ucBG, 1); urr(x+b, ty+b, w-2*b, bot-ty+r+2, r-b, 1);
+    ucol(ucTEXT, 1);
+  ) : (
+    ty = floor(19*usc);
+    ucol(hot ? ucHAIR : ucSURF, 1); urr(x, ty, w, bot-ty+r+2, r, 1);
+    ucol(hot ? ucTEXT : ucMUTED, 1);
+  );
+  utext(str, x+w/2, (on ? 24 : 26)*usc);
+);
+// the mark, right edge at rx, centered on cy. Color: whatever ucol set before.
+function ulogo(rx, cy) local(lbg, w, h, m, x0, y0, r, c, v)
+(
+  lbg = usc >= 1.5;
+  w = lbg ? lgw2 : lgw1; h = lbg ? lgh2 : lgh1; m = lbg ? m_lg2 : m_lg1;
+  x0 = floor(rx - w); y0 = floor(cy - h/2);
+  r = 0;
+  loop(h,
+    c = 0;
+    loop(w,
+      v = m[r*w + c];
+      v > 0 ? ( gfx_a = v/15; gfx_rect(x0+c, y0+r, 1, 1); );
+      c += 1;
+    );
+    r += 1;
+  );
+);
+
+// a small rectangular button for the header
+function ubtn(x, y, w, h, on, hot, str) local(r)
+(
+  r = max(2, floor(3*usc));
+  on ? ( ucol(ucACT, 1); urr(x, y, w, h, r, 1); ucol(ucACTO, 1); urr(x, y, w, h, r, 0); ucol(ucACTX, 1); )
+     : ( ucol(hot ? ucTEXT : ucBORD, 1); urr(x, y, w, h, r, 0); ucol(hot ? ucTEXT : ucMUTED, 1); );
+  utext(str, x+w/2, y+h/2-5.5*usc);
+);
+// a small ear: outer rim, lobe and inner fold
+function uear(cx, cy, r, th)
+(
+  uarc(cx+r*0.05, cy-r*0.18, r*0.62, -1.75, 2.15, th);
+  uarc(cx+r*0.02, cy+r*0.42, r*0.30, 1.55, 4.1, th);
+  uarc(cx+r*0.08, cy-r*0.14, r*0.30, -1.2, 2.5, th);
+);
+function udval(arr, b0, b1) local(k, k1, mx, frt)
+(
+  b1-b0 < 1 ? (
+    k = floor(b0); frt = b0-k; arr[k]*(1-frt) + arr[k+1]*frt;
+  ) : (
+    k = floor(b0); k1 = min(floor(b1), nb-1); mx = 0;
+    loop(max(1, k1-k+1), mx = max(mx, arr[k]); k += 1; );
+    mx;
+  );
+);
+function uspecy(p) local(d) ( d = 10*log10(p*unorm + TINY); usy + max(0, min(1, (-20-d)/80))*ush; );
+function ucurve(arr, c, fill, scale) local(i, x, b0, b1, y, ly, lx, st, n, bot)
+(
+  st = max(1, floor(usc+0.5)); n = floor(usw/st); bot = usy+ush;
+  i = 0; b0 = ufb0;
+  loop(n,
+    x = usx + i*st;
+    b1 = ufb0*exp(uflog*(i+1)/n);
+    y = uspecy(udval(arr, b0, b1)*scale);
+    fill ? ( ucol(c, 0.16); gfx_rect(x, y, st, max(0, bot-y)); );
+    i > 0 ? ( ucol(c, 1); gfx_line(lx, ly, x, y, 1); );
+    lx = x; ly = y; b0 = b1;
+    i += 1;
+  );
+);
+
+// ---- theme: the gray design of roomservice. Controls stay gray, only signals carry color.
+udark = slider18 < 0.5;
+udark ? (
+  ucBG = 0x202125; ucSURF = 0x303136; ucBORD = 0x72737B; ucTEXT = 0xFFFFFF; ucMUTED = 0xC6C7CD; ucLINE = 0x3A3B41; ucHAIR = 0x55565D;
+  ucDIM = 0x7C7D85; ucSTAGE = 0x18191C; ucACT = 0x2F5382; ucACTX = 0xEAF3FF; ucACTO = 0x7FBEFF; ucCTL = 0xE4E5E9;
+  ucSIG = 0x7FBEFF; ucAMB = 0xF0646A; ucREV = 0xB5A9E0; ucIN = 0xA7B4C4;
+) : (
+  ucBG = 0xE6E6E8; ucSURF = 0xF8F8F9; ucBORD = 0xBABBC0; ucTEXT = 0x2B2E33; ucMUTED = 0x62666D; ucLINE = 0xEAEAEC; ucHAIR = 0xCDCED2;
+  ucDIM = 0xA2A4A9; ucSTAGE = 0xF8F8F9; ucACT = 0xD3E5F8; ucACTX = 0x1A4A86; ucACTO = 0x4C93DC; ucCTL = 0x565A62;
+  ucSIG = 0x4C93DC; ucAMB = 0xD8434A; ucREV = 0x8D80BB; ucIN = 0x6A7580;
+);
+
+uadv = slider9 >= 0.5;
+ufix = uadv ? 491 : 327;
+usc = max(0.5, min(gfx_w/664, gfx_h/(ufix+110)));
+ushb = max(110, gfx_h/usc - ufix);
+uox = floor((gfx_w-664*usc)/2 - 8*usc);
+ulb = mouse_cap & 1;
+upress = ulb && !ulbp;
+urelease = !ulb && ulbp;
+uhov = 0;
+uon = slider4 >= 0.5;
+
+ucol(ucBG, 1); gfx_rect(0, 0, gfx_w, gfx_h);
+gfx_setfont(1, "Arial", floor(19*usc), 'b');
+gfx_setfont(2, "Arial", floor(12*usc));
+gfx_setfont(3, "Arial", floor(10.5*usc));
+gfx_setfont(4, "Arial", floor(12.5*usc), 'b');
+gfx_setfont(5, "Arial", floor(14*usc), 'b');
+gfx_setfont(6, "Arial", floor(10.5*usc), 'b');
+gfx_setfont(7, "Arial", floor(9.5*usc), 'b');
+gfx_setfont(8, "Arial", floor(9*usc));
+gfx_setfont(9, "Arial", floor(10*usc));
+
+// ---- header
+upx = uox+28*usc; upy = 23*usc; upr = 11*usc;
+uinc(upx, upy, upr+3*usc) ? uhov = 20;
+uon ? ( ucol(ucACT, 1); gfx_circle(upx, upy, upr, 1, 1); );
+ucol(uon ? ucACTO : ucDIM, 1);
+gfx_circle(upx, upy, upr, 0, 1);
+uarc(upx, upy, 5*usc, 0.75, 5.53, 1.4*usc);
+gfx_rect(floor(upx-0.7*usc), floor(upy-7*usc), max(1, floor(1.6*usc)), floor(6*usc));
+gfx_setfont(1);
+ucol(ucTEXT, 1); gfx_x = uox+50*usc; gfx_y = 8*usc; gfx_drawstr("Alfred");
+// the dmajorsound mark (only the graphic), above the end of the title, a little to the right and up
+gfx_measurestr("Alfred", uttw, utth);
+ucol(ucMUTED, 1); ulogo(floor(uox+50*usc + uttw + (usc >= 1.5 ? lgw2 : lgw1) + 3*usc), floor(13*usc));
+gfx_a = 1;
+gfx_setfont(8);
+ucol(ucMUTED, 1); gfx_x = uox+51*usc; gfx_y = 30*usc; gfx_drawstr("A simple Denoiser at your Service");
+gfx_setfont(6);
+uph = floor(22*usc); upy2 = floor(12*usc);
+// reset
+gfx_setfont(7);
+uph = floor(18*usc); upy2 = floor(14*usc);
+// theme: shows the mode it is in. Dark = a crescent moon, light = a sun, both drawn in outlines.
+utx = floor(uox+652*usc); uty = floor(23*usc); utr = 9*usc;
+ucol(ucTEXT, 1);
+udark ? (
+  uarc(utx-1.2*usc, uty+0.9*usc, 7*usc, 2.166, 5.977, 1.3*usc);
+  uarc(utx-1.2*usc+3.69*usc, uty+0.9*usc-2.75*usc, 7*usc, 2.836, 5.307, 1.3*usc);
+) : (
+  uarc(utx, uty, 4.2*usc, 0, 6.2832, 1.3*usc);
+  uri = 0;
+  loop(8,
+    ura = uri*0.7854;
+    gfx_line(utx+sin(ura)*6.4*usc, uty-cos(ura)*6.4*usc, utx+sin(ura)*9*usc, uty-cos(ura)*9*usc, 1);
+    uri += 1;
+  );
+);
+uinc(utx, uty, utr+3*usc) ? uhov = 27;
+// mode, at the right: Voice (keeps the voice) or SFX (keeps any sound). The dot lights while a voice is detected.
+umfx = slider20 >= 0.5;
+umx1 = floor(uox+524*usc); umw1 = floor(56*usc); umx2 = floor(uox+584*usc); umw2 = floor(44*usc);
+uin(umx1, upy2, umw1, uph) ? uhov = 28;
+uin(umx2, upy2, umw2, uph) ? uhov = 29;
+gfx_setfont(7);
+ubtn(umx1, upy2, umw1, uph, !umfx, uhov == 28, "    VOICE");
+ubtn(umx2, upy2, umw2, uph, umfx, uhov == 29, "SFX");
+ucol((!umfx && uon && vv > 0.5) ? ucACTO : ucDIM, 1); gfx_circle(umx1+floor(10*usc), upy2+floor(uph/2), max(2, 2.5*usc), 1, 1);
+gfx_setfont(6);
+// view: two tabs on the header line. Basic is what a new instance opens with.
+uvx = floor(uox+208*usc); uvw = floor(70*usc); uvx2 = floor(uox+282*usc); uvw2 = floor(76*usc);
+uty2 = floor(15*usc); uth = floor(46*usc)-uty2;
+uin(uvx, uty2, uvw, uth) ? uhov = 23;
+uin(uvx2, uty2, uvw2, uth) ? uhov = 24;
+utab(uvx, uvw, !uadv, uhov == 23, "BASIC");
+utab(uvx2, uvw2, uadv, uhov == 24, "EXPERT");
+// everything of the tabs below the header line is cut off, then the line, open under the tab that is showing
+ucol(ucBG, 1); gfx_rect(uvx-2, floor(46*usc), uvx2+uvw2-uvx+4, floor(10*usc));
+ucol(udark ? ucHAIR : ucBORD, 1); gfx_rect(uox, floor(46*usc), floor(680*usc), 1);
+ucol(ucBG, 1);
+uadv ? gfx_rect(uvx2+max(1, floor(1.4*usc)), floor(46*usc), uvw2-2*max(1, floor(1.4*usc)), 1)
+     : gfx_rect(uvx+max(1, floor(1.4*usc)), floor(46*usc), uvw-2*max(1, floor(1.4*usc)), 1);
+
+// ---- spectrum
+usx = floor(uox+16*usc); usy = floor(56*usc); usw = floor(648*usc); ush = floor(ushb*usc);
+ucol(ucSTAGE, 1); gfx_rect(usx, usy, usw, ush);
+unorm = 8/(NL*NL);
+ufmin = 40; ufmax = min(20000, srate*0.5);
+uflog = log(ufmax/ufmin); ufb0 = ufmin*NL/srate;
+// the range of the band under the mouse
+(uadv && uhovp >= 50 && uhovp <= 54) ? (
+  ub0 = uhovp == 50 ? ufmin : uhovp == 51 ? 120 : uhovp == 52 ? 500 : uhovp == 53 ? 2000 : 6000;
+  ub1 = uhovp == 50 ? 120 : uhovp == 51 ? 500 : uhovp == 52 ? 2000 : uhovp == 53 ? 6000 : ufmax;
+  ubx0 = floor(usx + usw*log(ub0/ufmin)/uflog); ubx1 = floor(usx + usw*log(min(ub1, ufmax)/ufmin)/uflog);
+  ucol(ucACTO, 0.14); gfx_rect(ubx0, usy, ubx1-ubx0, ush);
+);
+gfx_setfont(3);
+ugy = 1; loop(3, ucol(ucLINE, 1); gfx_rect(usx, floor(usy+ush*ugy/4), usw, 1); ugy += 1; );
+ugn = 0;
+loop(8,
+  ugf = ugn == 0 ? 50 : ugn == 1 ? 100 : ugn == 2 ? 200 : ugn == 3 ? 500 : ugn == 4 ? 1000 : ugn == 5 ? 2000 : ugn == 6 ? 5000 : 10000;
+  ugx = floor(usx + usw*log(ugf/ufmin)/uflog);
+  ugx < usx+usw ? (
+    ucol(ucLINE, (ugn == 1 || ugn == 4 || ugn == 7) ? 1 : 0.5); gfx_rect(ugx, usy, 1, ush);
+    ucol(ucDIM, 1); gfx_x = ugx+4*usc; gfx_y = usy+3*usc;
+    gfx_drawstr(ugn == 0 ? "50" : ugn == 1 ? "100" : ugn == 2 ? "200" : ugn == 3 ? "500" : ugn == 4 ? "1k" : ugn == 5 ? "2k" : ugn == 6 ? "5k" : "10k");
+  );
+  ugn += 1;
+);
+ucurve(dA, ucAMB, 1, 1);
+ucurve(dR, ucREV, 1, 1);
+ucurve(dS, ucSIG, 1, 1);
+ucurve(dI, ucIN, 0, 1);
+(uadv && pmode == 2) ? ucurve(eff, ucTEXT, 0, OSUB);
+(uadv && slider17 > 0.5) ? (
+  ucol(ucSIG, 0.9);
+  uei = 0; uen = floor(usw/max(2, floor(3*usc)));
+  loop(uen+1,
+    uek = floor(ufb0*exp(uflog*uei/uen)+0.5);
+    uex2 = usx + usw*uei/uen;
+    uey2 = usy + ush*0.5 - max(-22, min(22, enhc[uek]*slider17*0.01 + glev))*ush/48;
+    uei > 0 ? gfx_line(uexp, ueyp, uex2, uey2, 1);
+    uexp = uex2; ueyp = uey2;
+    uei += 1;
+  );
+  gfx_setfont(8); gfx_x = usx+usw-52*usc; gfx_y = usy+ush*0.5-13*usc; gfx_drawstr("ENHANCE");
+  gfx_setfont(3);
+);
+ucol(ucLINE, 1);
+gfx_rect(usx, usy, usw, 1); gfx_rect(usx, usy+ush-1, usw, 1); gfx_rect(usx, usy, 1, ush); gfx_rect(usx+usw-1, usy, 1, ush);
+uin(usx, usy, usw, ush) ? uhov = 30;
+
+// ---- expert tab: noise print, thresholds, enhance
+uyk = usy + ush + floor(12*usc);
+uadv ? (
+  uay = uyk; uah = floor(152*usc);
+  ucol(ucSURF, 1); urr(usx, uay, usw, uah, 6*usc, 1);
+  // the ear
+  uex = floor(uox+44*usc); uey = floor(uay+44*usc); uer = 19*usc;
+  upls = 0.8+0.2*sin(time_precise()*6);
+  pmode == 1 ? ( ucol(ucACTO, upls); gfx_circle(uex, uey, uer, 1, 1); ucol(ucBG, 1); )
+  : pmode == 2 ? ( ucol(ucACT, 1); gfx_circle(uex, uey, uer, 1, 1); ucol(ucACTO, 1); gfx_circle(uex, uey, uer, 0, 1); ucol(ucACTX, 1); )
+  : ( ucol(ucBORD, 1); gfx_circle(uex, uey, uer, 0, 1); ucol(ucMUTED, 1); );
+  uear(uex, uey, uer*0.74, 1.6*usc);
+  uinc(uex, uey, uer+3*usc) ? uhov = 22;
+  gfx_setfont(6);
+  ucol(ucTEXT, 1); gfx_x = uox+72*usc; gfx_y = uay+30*usc; gfx_drawstr("NOISE PRINT");
+  gfx_setfont(2);
+  ucol(ucMUTED, 1); gfx_x = uox+72*usc; gfx_y = uay+45*usc;
+  gfx_drawstr(pmode == 1 ? "Listening ..." : pmode == 2 ? "Learned" : "None, adaptive");
+  gfx_setfont(6);
+  uapx = floor(uox+28*usc); uapy = floor(uay+82*usc); uapw = floor(84*usc);
+  upill(uapx, uapy, uapw, uph, pmode == 0, "ADAPTIVE");
+  uin(uapx, uapy, uapw, uph) ? uhov = 21;
+  gfx_setfont(3);
+  ucol(ucDIM, 1); gfx_x = uox+28*usc; gfx_y = uay+116*usc; gfx_drawstr("Alt-click the ear to clear");
+  // noise and tonal threshold: a framed block of their own
+  utfx = floor(uox+176*usc); utfy = floor(uay+6*usc); utfw = floor(116*usc); utfh = uah-floor(12*usc);
+  ucol(ucBG, 1); urr(utfx, utfy, utfw, utfh, 6*usc, 1);
+  ucol(ucBORD, 1); urr(utfx, utfy, utfw, utfh, 6*usc, 0);
+  // group captions
+  gfx_setfont(7);
+  ucol(ucMUTED, 1);
+  utext("THRESHOLD", uox+(208+26)*usc, uay+11*usc);
+  ucol(ucDIM, 1);
+  utext("BAND THRESHOLDS (Hz)", uox+(214+52*4)*usc, uay+10*usc);
+  utext("SIGNAL", uox+(214+52*7.5)*usc, uay+10*usc);
+  ucol(ucLINE, 1);
+  gfx_rect(floor(uox+(214+52*6.5)*usc), uay+floor(10*usc), 1, uah-floor(20*usc));
+  ufi = 0;
+  loop(9,
+    ufid = ufi == 0 ? 40 : ufi == 1 ? 41 : ufi == 7 ? 60 : ufi == 8 ? 61 : 48+ufi;
+    ufx = floor(uox+(208+52*ufi+(ufi >= 2 ? 6 : 0))*usc); ufy = floor(uay+48*usc); ufh = floor(72*usc);
+    ufdim = !uon;
+    gfx_setfont(7);
+    ucol(ucMUTED, ufdim ? 0.5 : 1);
+    utext(ufi == 0 ? "NOISE" : ufi == 1 ? "TONAL" : ufi == 2 ? "20-120" : ufi == 3 ? "120-500" : ufi == 4 ? "500-2k" : ufi == 5 ? "2k-6k" : ufi == 6 ? "6k-20k" : ufi == 7 ? "ENHANCE" : "PRESERVE", ufx, uay+26*usc);
+    ufader(ufid, ufx, ufy, ufh, ufid >= 60 ? ucSIG : ucAMB, ufdim ? 0.4 : 1, 0);
+    uin(ufx-24*usc, uay+22*usc, 48*usc, 102*usc) ? ( uhov = ufid; uhy0 = ufy; uhh = ufh; );
+    gfx_setfont(3);
+    uedit == ufid ? (
+      ucol(ucACTO, 1); urr(ufx-23*usc, uay+127*usc, 46*usc, 16*usc, 3*usc, 0);
+      sprintf(#uval, "%s|", #uedit); ucol(ucTEXT, 1); utext(#uval, ufx, uay+130*usc);
+    ) : (
+      uvalstr(ufid);
+      ucol(ucTEXT, ufdim ? 0.5 : 1); utext(#uval, ufx, uay+130*usc);
+    );
+    uin(ufx-24*usc, uay+126*usc, 48*usc, 18*usc) ? uhov = 100+ufid;
+    ufi += 1;
+  );
+  uyk = uay + uah + floor(12*usc);
+);
+
+// ---- the three parts
+ugi = 0;
+loop(3,
+  ukx = floor(uox + (124+216*ugi)*usc);
+  ukc = upart(ugi);
+  ukm = ugi == 0 ? slider6 : ugi == 1 ? slider7 : slider8;
+  usbit = 2^ugi; uson = (slider5 & usbit) > 0;
+  ukdim = (slider5 > 0 && !uson) || (slider19 > 0 && slider19 != ugi+1) || (ukm >= 0.5 && slider19 == 0) || !uon;
+  uka = ukdim ? 0.4 : 1;
+  gfx_setfont(4);
+  ucol(ukc, uka);
+  utext(ugi == 0 ? "SIGNAL" : ugi == 1 ? "NOISE" : "REVERB", ukx, uyk);
+  // fader with scale on the left and level meter on the right
+  uky = floor(uyk+24*usc); ukh = floor(118*usc);
+  gfx_setfont(3);
+  ucol(ucDIM, 1);
+  gfx_x = ukx-56*usc; gfx_y = uky-6*usc; gfx_drawstr("+24");
+  gfx_x = ukx-48*usc; gfx_y = uky+ukh/2-6*usc; gfx_drawstr("0");
+  gfx_x = ukx-54*usc; gfx_y = uky+ukh-6*usc; gfx_drawstr("-inf");
+  ufader(ugi+1, ukx-10*usc, uky, ukh, ukc, uka, 1);
+  uin(ukx-60*usc, uky-8*usc, 104*usc, ukh+16*usc) ? ( uhov = 1+ugi; uhy0 = uky; uhh = ukh; );
+  ulv = (ugi == 0 ? lvS : ugi == 1 ? lvA : lvR)*8/(3*NL*NL);
+  uld = 10*log10(ulv+TINY); ulf = max(0, min(1, (uld+72)/72));
+  uim[ugi] = max(ulf, uim[ugi]-0.02);
+  umw = max(3, floor(6*usc)); umx = floor(ukx+22*usc);
+  ucol(ucHAIR, 1); gfx_rect(umx, uky, umw, ukh);
+  ucol(ukc, uon ? 1 : 0.4); gfx_rect(umx, floor(uky+ukh*(1-uim[ugi])), umw, ceil(ukh*uim[ugi]));
+  // value
+  gfx_setfont(5);
+  uedit == ugi+1 ? (
+    ucol(ucACTO, 1); urr(ukx-44*usc, uyk+146*usc, 88*usc, 22*usc, 4*usc, 0);
+    sprintf(#uval, "%s|", #uedit); ucol(ucTEXT, 1); utext(#uval, ukx, uyk+150*usc);
+  ) : (
+    slider19 == ugi+1 ? strcpy(#uval, "Delta") : ukm >= 0.5 ? strcpy(#uval, "Muted") : uson ? strcpy(#uval, "Solo") : uvalstr(ugi+1);
+    ucol(ucTEXT, uka); utext(#uval, ukx, uyk+150*usc);
+  );
+  uin(ukx-44*usc, uyk+146*usc, 88*usc, 22*usc) ? uhov = 101+ugi;
+  // solo / mute: a letter on a soft rounded square
+  ubs = floor(20*usc); uby = floor(uyk+172*usc);
+  ubx = floor(ukx-ubs*1.5-5*usc);
+  uson ? ( ucol(ukc, 1); urr(ubx, uby, ubs, ubs, 5*usc, 1); ucol(udark ? ucBG : 0xFFFFFF, 1); ) : ( ucol(ucBORD, 1); urr(ubx, uby, ubs, ubs, 5*usc, 0); ucol(ucMUTED, 1); );
+  gfx_setfont(6); utext("S", ubx+ubs/2, uby+ubs/2-6*usc);
+  uin(ubx, uby, ubs, ubs) ? uhov = 4+ugi;
+  ubx = floor(ukx-ubs*0.5);
+  ukm >= 0.5 ? ( ucol(ucCTL, 1); urr(ubx, uby, ubs, ubs, 5*usc, 1); ucol(ucBG, 1); ) : ( ucol(ucBORD, 1); urr(ubx, uby, ubs, ubs, 5*usc, 0); ucol(ucMUTED, 1); );
+  utext("M", ubx+ubs/2, uby+ubs/2-6*usc);
+  uin(ubx, uby, ubs, ubs) ? uhov = 7+ugi;
+  // delta: a small triangle
+  ubx = floor(ukx+ubs*0.5+5*usc);
+  slider19 == ugi+1 ? ( ucol(ukc, 1); urr(ubx, uby, ubs, ubs, 5*usc, 1); ucol(udark ? ucBG : 0xFFFFFF, 1); ) : ( ucol(ucBORD, 1); urr(ubx, uby, ubs, ubs, 5*usc, 0); ucol(ucMUTED, 1); );
+  utx0 = ubx+ubs*0.5; uty0 = uby+ubs*0.28; utx1 = ubx+ubs*0.25; utx2 = ubx+ubs*0.75; uty1 = uby+ubs*0.72;
+  gfx_line(utx0, uty0, utx1, uty1, 1); gfx_line(utx1, uty1, utx2, uty1, 1); gfx_line(utx2, uty1, utx0, uty0, 1);
+  uin(ubx, uby, ubs, ubs) ? uhov = 10+ugi;
+  ugi += 1;
+);
+uyf = uyk + 204*usc;
+
+// ---- reset: an arrow that turns back, at the right of the S / M / delta buttons
+urx = floor(uox+648*usc); ury = floor(uyk+182*usc); urr2 = 7*usc;
+uinc(urx, ury, urr2+5*usc) ? uhov = 26;
+ucol(uhov == 26 ? ucTEXT : ucMUTED, 1);
+uarc(urx, ury, urr2, 1.35, 6.05, 1.4*usc);
+ursn = sin(1.35); urcs = cos(1.35);
+urpx = urx + ursn*(urr2-0.35*usc); urpy = ury - urcs*(urr2-0.35*usc);
+gfx_triangle(urpx - urcs*5*usc, urpy - ursn*5*usc, urpx + ursn*3.4*usc, urpy - urcs*3.4*usc, urpx - ursn*3.4*usc, urpy + urcs*3.4*usc);
+
+// ---- mouse
+uisf = (uhov >= 1 && uhov <= 3) || uhov == 40 || uhov == 41 || (uhov >= 50 && uhov <= 54) || uhov == 60 || uhov == 61;
+// typing a value: click the number, type, Enter to set, Esc to leave it
+uedit ? (
+  uch = gfx_getchar();
+  while (uch > 0) (
+    uch == 13 ? ( match("%f", #uedit, utyped) ? ( uset(uedit, utyped); slider_automate(umask(uedit), 1); ); uedit = 0; ) :
+    uch == 27 ? ( uedit = 0; ) :
+    uch == 8 ? ( strlen(#uedit) > 0 ? strcpy_substr(#uedit, #uedit, 0, strlen(#uedit)-1); ) :
+    ((uch >= 48 && uch <= 57) || uch == 45 || uch == 46 || uch == 44) ? ( strlen(#uedit) < 7 ? sprintf(#uedit, "%s%c", #uedit, uch == 44 ? 46 : uch); );
+    uch = uedit ? gfx_getchar() : 0;
+  );
+  (upress && uhov != 100+uedit) ? ( match("%f", #uedit, utyped) ? ( uset(uedit, utyped); slider_automate(umask(uedit), 1); ); uedit = 0; );
+);
+upress ? (
+  uisf ? (
+    unow = time_precise();
+    ((mouse_cap & 4) || (uhov == ulast && unow-ulastt < 0.3)) ? (
+      uset(uhov, udef(uhov)); slider_automate(umask(uhov), 1); udrag = 0;
+    ) : (
+      udrag = uhov; udy = mouse_y; udacc = upos(uhov); udh = uhh;
+    );
+    ulast = uhov; ulastt = unow;
+  ) : uhov >= 4 && uhov <= 6 ? (
+    // click: this part alone (or off again). Shift-click: add it to, or take it out of, the parts already soloed
+    ucb = 2^(uhov-4);
+    (mouse_cap & 8) ? ( slider5 = (slider5 & ucb) ? slider5 - ucb : slider5 + ucb; ) : ( slider5 = slider5 == ucb ? 0 : ucb; );
+    slider_automate(16); slider_automate(16, 1);
+  ) : uhov >= 7 && uhov <= 9 ? (
+    uhov == 7 ? ( slider6 = slider6 >= 0.5 ? 0 : 1; ) : uhov == 8 ? ( slider7 = slider7 >= 0.5 ? 0 : 1; ) : ( slider8 = slider8 >= 0.5 ? 0 : 1; );
+    slider_automate(2^(uhov-2)); slider_automate(2^(uhov-2), 1);
+  ) : uhov >= 10 && uhov <= 12 ? (
+    slider19 = slider19 == uhov-9 ? 0 : uhov-9; slider_automate(262144); slider_automate(262144, 1);
+  ) : uhov == 20 ? (
+    slider4 = uon ? 0 : 1; slider_automate(8); slider_automate(8, 1);
+  ) : uhov == 21 ? (
+    req_clear = 1;
+  ) : uhov == 22 ? (
+    (mouse_cap & 16) ? req_clear = 1 : req_learn = 1;
+  ) : uhov == 23 ? (
+    slider9 = 0; slider_automate(256); slider_automate(256, 1);
+  ) : uhov == 24 ? (
+    slider9 = 1; slider_automate(256); slider_automate(256, 1);
+  ) : uhov == 26 ? (
+    slider1 = 0; slider2 = 0; slider3 = 0; slider5 = 0; slider6 = 0; slider7 = 0; slider8 = 0;
+    slider10 = 0; slider11 = 0; slider12 = 0; slider13 = 0; slider14 = 0; slider15 = 0; slider16 = 0; slider17 = 0; slider19 = 0; slider21 = 50;
+    slider_automate(1441527); slider_automate(1441527, 1);
+  ) : uhov == 27 ? (
+    slider18 = udark ? 1 : 0; slider_automate(131072); slider_automate(131072, 1);
+  ) : uhov == 28 ? (
+    slider20 = 0; slider_automate(524288); slider_automate(524288, 1);
+  ) : uhov == 29 ? (
+    slider20 = 1; slider_automate(524288); slider_automate(524288, 1);
+  ) : uhov > 100 ? (
+    uedit = uhov-100; strcpy(#uedit, "");
+  );
+);
+(ulb && udrag) ? (
+  mouse_y != udy ? (
+    udacc += (udy-mouse_y)/max(1, udh)*((mouse_cap & 8) ? 0.2 : 1);
+    udacc = max(0, min(1, udacc));
+    udy = mouse_y;
+    uset(udrag, floor(uval(udrag, udacc)*10+0.5)/10);
+  );
+  uhov = udrag;
+);
+(urelease && udrag) ? ( slider_automate(umask(udrag), 1); udrag = 0; );
+mouse_wheel != 0 ? (
+  uisf ? (
+    uset(uhov, floor(uval(uhov, upos(uhov) + (mouse_wheel > 0 ? 1 : -1)*((mouse_cap & 8) ? 0.002 : 0.01))*10+0.5)/10);
+    slider_automate(umask(uhov), 1);
+  );
+  mouse_wheel = 0;
+);
+ulbp = ulb;
+uhovp = uhov;
+
+// ---- footer (the same in every dmajorsound plug-in): what the control under the mouse does, a dividing line,
+// below it the version on the left and dmajorsound.com in the right corner
+ucol(udark ? ucHAIR : ucBORD, 1); gfx_rect(uox, floor(uyf+20*usc), floor(680*usc), 1);
+ufcy = floor(uyf+32*usc);
+gfx_setfont(9);
+sprintf(#uver, "V %s - developed with AI assistance", #verstr);
+gfx_measurestr(#uver, ulgw, ulgh);
+ucol(ucMUTED, 1); gfx_x = uox+16*usc; gfx_y = floor(ufcy - ulgh/2); gfx_drawstr(#uver);
+gfx_a = 1; ucol(ucMUTED, 1);
+gfx_measurestr("dmajorsound.com", ulgw, ulgh);
+gfx_x = floor(uox+664*usc - ulgw); gfx_y = floor(ufcy - ulgh/2); gfx_drawstr("dmajorsound.com");
+gfx_setfont(2);
+ucol(ucMUTED, 1);
+gfx_x = uox+16*usc; gfx_y = floor(uyf);
+uhov == 1 ? gfx_drawstr("Signal: level of the sound you want to keep.") :
+uhov == 2 ? gfx_drawstr(slider20 >= 0.5 ? "Noise: level of the steady background noise." : "Noise: level of everything that is not the voice.") :
+uhov == 3 ? gfx_drawstr("Reverb: level of the room tail behind the sound.") :
+uhov >= 4 && uhov <= 6 ? gfx_drawstr("Solo: hear this part alone. Shift-click adds another part, e.g. Noise + Reverb.") :
+uhov >= 7 && uhov <= 9 ? gfx_drawstr("Mute: silence this part.") :
+uhov >= 10 && uhov <= 12 ? gfx_drawstr("Delta: hear only what this fader takes away from its part.") :
+uhov == 20 ? gfx_drawstr("Power: bypass. The delay stays compensated.") :
+uhov == 21 ? gfx_drawstr("Adaptive: drop the noise print and follow the noise floor.") :
+uhov == 22 ? gfx_drawstr(pmode == 1 ? "Listening. Click again to stop and keep the noise print." : "Learn: click, play only the noise, click again. Alt-click clears the print.") :
+uhov == 23 ? gfx_drawstr("Basic tab: three levels with solo and mute.") :
+uhov == 24 ? gfx_drawstr("Expert tab: noise print, thresholds, Enhance and Preserve Transients.") :
+uhov == 26 ? gfx_drawstr("Reset: all faders back to their defaults. The noise print stays.") :
+uhov == 27 ? gfx_drawstr(udark ? "Dark mode. Click for light." : "Light mode. Click for dark.") :
+uhov == 30 ? gfx_drawstr("Gray: input. Colors: what you hear of each part.") :
+uhov == 40 ? gfx_drawstr("Noise threshold: higher treats more as noise, lower keeps more.") :
+uhov == 41 ? gfx_drawstr("Tonal threshold: higher removes more hum and steady tones, lower protects tonal sounds.") :
+uhov == 50 ? gfx_drawstr("Band threshold 20 - 120 Hz: up cleans harder here, down keeps more.") :
+uhov == 51 ? gfx_drawstr("Band threshold 120 - 500 Hz: up cleans harder here, down keeps more.") :
+uhov == 52 ? gfx_drawstr("Band threshold 500 Hz - 2 kHz: up cleans harder here, down keeps more.") :
+uhov == 53 ? gfx_drawstr("Band threshold 2 - 6 kHz: up cleans harder here, down keeps more.") :
+uhov == 54 ? gfx_drawstr("Band threshold 6 - 20 kHz: up cleans harder here, down keeps more.") :
+uhov == 61 ? gfx_drawstr("Preserve Transients: keeps hits and clicks through the cleaning. Above 50 % also single bands.") :
+uhov == 28 ? gfx_drawstr("Voice: keeps the voice, treats everything else as noise. The dot lights on a voice.") :
+uhov == 29 ? gfx_drawstr("SFX: keeps any sound and removes only the steady noise.") :
+uhov > 100 ? gfx_drawstr("Click to type a value. Enter sets it, Esc leaves it.") :
+uhov == 60 ? gfx_drawstr("Enhance: moves the voice toward a close studio tone. Cuts rumble, boom and dullness.") :
+!uon ? gfx_drawstr("Bypassed.") :
+pmode == 2 ? gfx_drawstr("Using the learned noise print.") :
+pmode == 1 ? gfx_drawstr("Learning the noise print: click the ear again to stop.") :
+gfx_drawstr("Double-click resets a fader, Shift moves it in fine steps, click a number to type it.");

@@ -1,0 +1,71 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check-translation:
+    name: Generated code matches the JSFX
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Translate jsfx/Alfred.jsfx again and compare
+        run: |
+          python3 tools/eel2cpp.py jsfx/Alfred.jsfx src/gen AlfredCore
+          git diff --exit-code src/gen
+
+  macos:
+    name: macOS (Apple Silicon + Intel)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+      - name: Build
+        run: cmake --build build --config Release -j 4
+      - name: Sign (ad hoc) and validate the Audio Unit
+        run: |
+          A=build/Alfred_artefacts/Release
+          for p in "$A/VST3/Alfred.vst3" "$A/AU/Alfred.component" "$A/CLAP/Alfred.clap"; do
+            codesign --force --deep -s - "$p"
+          done
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "$A/AU/Alfred.component" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          auval -v aufx Alfd Dmjs
+      - name: Package
+        run: |
+          A=build/Alfred_artefacts/Release
+          mkdir -p dist/Alfred-macOS
+          cp -R "$A/VST3/Alfred.vst3" "$A/AU/Alfred.component" "$A/CLAP/Alfred.clap" dist/Alfred-macOS/
+          cp packaging/install_mac.command packaging/README_INSTALL.txt dist/Alfred-macOS/
+          chmod +x dist/Alfred-macOS/install_mac.command
+          cd dist && ditto -c -k --keepParent Alfred-macOS Alfred-macOS.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Alfred-macOS
+          path: dist/Alfred-macOS.zip
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+      - name: Build
+        run: cmake --build build --config Release -j 4
+      - name: Package
+        shell: bash
+        run: |
+          A=build/Alfred_artefacts/Release
+          mkdir -p dist/Alfred-Windows
+          cp -R "$A/VST3/Alfred.vst3" "$A/CLAP/Alfred.clap" dist/Alfred-Windows/
+          cp packaging/README_INSTALL.txt dist/Alfred-Windows/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Alfred-Windows
+          path: dist/Alfred-Windows
