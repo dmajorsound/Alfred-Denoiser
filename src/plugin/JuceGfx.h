@@ -4,6 +4,8 @@
 #include <deque>
 #include <unordered_map>
 #include <memory>
+#include <string>
+#include <vector>
 
 // Draws the JSFX's @gfx calls with JUCE, into an image at the screen's pixel density.
 class JuceGfx : public GfxBackend
@@ -34,10 +36,20 @@ private:
     JsfxRuntime& rt;
     double *r = nullptr, *g = nullptr, *b = nullptr, *a = nullptr, *x = nullptr, *y = nullptr;
     std::unique_ptr<juce::Graphics> gr;
-    struct FontSlot { juce::String face; double size = 0; int flags = 0; juce::Font font { juce::FontOptions() }; bool valid = false; };
+    // rectangles and lines are most of what a frame draws: they are written straight into the image
+    std::unique_ptr<juce::Image::BitmapData> bits;
+    bool direct = false;
+    void blendSpan(int px, int py, int n, juce::uint32 c8, int a256);
+    void blendPixel(int px, int py, juce::uint32 c8, int a256);
+    void fillRectDirect(int x0, int y0, int w, int h);
+    void lineDirect(double x1, double y1, double x2, double y2);
+    struct FontSlot { juce::String face; double size = 0; int flags = 0; juce::Font font { juce::FontOptions() }; bool valid = false; juce::uint32 generation = 0; };
+    juce::uint32 fontGeneration = 0;
     FontSlot fonts[32];
     int cur = 0;
     std::unique_ptr<juce::Font> defaultFont;
-    std::unordered_map<juce::String, juce::Path> textCache;
+    struct TextEntry { double w = 0, h = 0; float asc = 0; juce::Path path; bool masked = false; int mx = 0, my = 0, mw = 0, mh = 0; std::vector<juce::uint8> cov; };
+    std::unordered_map<std::string, TextEntry> textCache;
+    TextEntry& textEntry(const std::string& s);
 };
 

@@ -119,6 +119,7 @@ public:
   double v_kap = 0.0;
   double v_kapmax = 0.0;
   double v_kapmin = 0.0;
+  double v_kph = 0.0;
   double v_kv0 = 0.0;
   double v_kv1 = 0.0;
   double v_lac1 = 0.0;
@@ -176,7 +177,8 @@ public:
   double v_ptw = 0.0;
   double v_qmax = 0.0;
   double v_qtmp = 0.0;
-  double v_rdc = 0.0;
+  double v_rdh = 0.0;
+  double v_rdi = 0.0;
   double v_relt = 0.0;
   double v_req_clear = 0.0;
   double v_req_learn = 0.0;
@@ -189,15 +191,19 @@ public:
   double v_rqr = 0.0;
   double v_rrh = 0.0;
   double v_rto = 0.0;
+  double v_rvb = 0.0;
+  double v_rvb0 = 0.0;
   double v_rvd = 0.0;
-  double v_rvin = 0.0;
+  double v_rvdi = 0.0;
+  double v_rvdn = 0.0;
   double v_rvk = 0.0;
+  double v_rvlr = 0.0;
   double v_rvmax = 0.0;
-  double v_rvpk = 0.0;
-  double v_rvpost = 0.0;
+  double v_rvq = 0.0;
+  double v_rvr = 0.0;
   double v_rvs = 0.0;
   double v_rvt = 0.0;
-  double v_rvth = 0.0;
+  double v_rvup = 0.0;
   double v_rw = 0.0;
   double v_ser_k = 0.0;
   double v_ser_mode = 0.0;
@@ -409,7 +415,6 @@ public:
   double v_vholdt = 0.0;
   double v_vlag = 0.0;
   double v_vlev = 0.0;
-  double v_vpost = 0.0;
   double v_vprev = 0.0;
   double v_vq0 = 0.0;
   double v_vq1 = 0.0;
@@ -504,7 +509,6 @@ public:
   double l_frame_bmc = 0.0;
   double l_frame_c = 0.0;
   double l_frame_conf = 0.0;
-  double l_frame_dc = 0.0;
   double l_frame_ehf = 0.0;
   double l_frame_frz = 0.0;
   double l_frame_g = 0.0;
@@ -561,7 +565,6 @@ public:
   double l_frame_vsx = 0.0;
   double l_frame_vt = 0.0;
   double l_frame_w = 0.0;
-  double l_frame_wpo = 0.0;
   double l_frame_x = 0.0;
   double l_frame_xi = 0.0;
   double l_frame_zg = 0.0;

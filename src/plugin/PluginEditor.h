@@ -28,7 +28,8 @@ private:
 
     AlfredProcessor& proc;
     JuceGfx gfx;
-    juce::Image frame;
+    juce::Image frame;      // the frame being drawn
+    juce::Image shown;      // the frame that is on screen
     double* mx; double* my; double* mcap; double* mwheel;
     double* gw; double* gh; double* gretina;
     int buttons = 0;

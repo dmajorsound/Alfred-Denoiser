@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.28 beta
+//version: 0.29 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -37,7 +37,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.28 beta";
+#verstr = "0.29 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -79,9 +79,9 @@ ENLMAX = 4;       // ... by at most this many dB up or down at 100 %
 ENB    = 23;      // ... third-octave bands from 80 Hz
 PBIAS  = 1.5;       // learned print: the average that was measured, times this
 RVMAX  = 0.97;    // most of a tail the reverb part may claim
-RVPOST = 0.9;     // dialogue mode: after the voice, at least this share of whatever is dying away goes to the Reverb part
-RVIN   = 0.6;     // dialogue mode: share of the reverb estimate used while the voice sounds
-RVTH   = 0.35;    // the reverb part only claims sound that is decaying about as slowly as the room
+RVQ    = 0.25;    // reverb model: share of the decaying frames in which its estimate may reach the sound that is there
+RVLR   = 0.004;   // ... how quickly it learns how strongly the room answers (per frame)
+RVB0   = 0.02;    // ... the room answer it starts from
 
 function alloc(n) local(p) ( p = mp; mp += n; memset(p, 0, n); p; );
 // FFT buffers must not straddle a 65536-slot memory block
@@ -272,7 +272,7 @@ function wpe_chan(f, h, g, pm, lv, lt, q, on, upd) local(te, k, j, i, b, jj, pr,
   );
 );
 
-function frame() local(i, j, k, m, p, w, re, im, pw, sm, c, na, xi, q, v, gh, g, gsv, tot, trk, a_s, bmc, conf, frz, lrn, acc, lo, hi, zl, zg, pl, pg, pp, ps, pd, px, r, x, rh, mv, ma, gn, sS, sA, sR, sig, nsum, ssum, hb, t, ehf, pk, vsx, vsa, vsp, vsn, vt, sv, ge, mr, ind, vg, rh, wpo, dc, ql, qr, gq)
+function frame() local(i, j, k, m, p, w, re, im, pw, sm, c, na, xi, q, v, gh, g, gsv, tot, trk, a_s, bmc, conf, frz, lrn, acc, lo, hi, zl, zg, pl, pg, pp, ps, pd, px, r, x, rh, mv, ma, gn, sS, sA, sR, sig, nsum, ssum, hb, t, ehf, pk, vsx, vsa, vsp, vsn, vt, sv, ge, mr, ind, vg, ql, qr, gq)
 (
   p = pos; m = NL-1;
   i = 0; loop(NL, j = i+i; k = (p+i)&m; w = win[i]; fL[j] = inL[k]*w; fL[j+1] = 0; fR[j] = inR[k]*w; fR[j+1] = 0; i += 1; );
@@ -413,26 +413,31 @@ function frame() local(i, j, k, m, p, w, re, im, pw, sm, c, na, xi, q, v, gh, g,
     k += 1;
   );
 
-  // pass 3: reverb. Looks at the smoothed spectrum of what is not ambience, compares it with
-  // itself 50 ms earlier and learns how slowly the room lets sound die away (per frequency).
+  // pass 3: reverb. Looks at the smoothed spectrum of what is not ambience, learns how slowly the room lets
+  // sound die away (per frequency) and how strongly it answers, and from that follows the tail under the sound.
   prop_smooth(tmpa, tmpb, 0.08, 2);
-  hb = hist + hwr*nb;
+  hb = hist + hwr*nb; t = rdh + rdi*nb;
   sS = 0; sA = 0; sR = 0;
   k = 0;
   loop(nb,
     px = tmpb[k];
-    ps = psr[k]; ps = px > ps ? px : a_rv*ps + (1-a_rv)*px; psr[k] = ps;
+    pp = psr[k]; ps = px > pp ? px : a_rv*pp + (1-a_rv)*px; psr[k] = ps;
     pd = hb[k]; hb[k] = ps;
     pkr[k] = max(ps, a_pk*pkr[k]);
     q = ps/(pd + TINY);
-    (q < 0.95 && q > 0.03 && pd > 0.001*pkr[k]) ? kap[k] = max(kapmin, min(kapmax, kap[k] + (q > kap[k] ? 0.0034 : -0.0006)));
-    x = kap[k]*pd/(ps + TINY);
-    r = max(0, min(1, (x-RVTH)/(1-RVTH)))*RVMAX;
-    rh = rho[k]; rh = r < rh ? r : a_rise*rh + (1-a_rise)*r; rho[k] = rh;
-    rdc[k] = q < 0.9 ? 1 : 0;
+    (q < 0.95 && q > 0.03 && pd > 0.001*pkr[k]) ? ( kap[k] = max(kapmin, min(kapmax, kap[k] + (q > kap[k] ? 0.0034 : -0.0006))); kph[k] = exp(log(kap[k])*rvdi); );
+    // the reverb model: the tail in this band is what is left of the tail one frame ago, plus the room's answer to
+    // the dry sound of one window ago. It can never be more than the sound that is there.
+    x = kph[k]*rvr[k] + rvb[k]*t[k];
+    // how strongly the room answers is learned while the sound dies away: the estimate may reach
+    // the sound itself in only a share of those frames, so sound that ends drier than the room is left alone
+    (ps < pp && ps > 0.001*pkr[k]) ? rvb[k] = max(0.0001, min(1, rvb[k]*(x > ps ? rvdn : rvup)));
+    r = min(x, ps); rvr[k] = r; t[k] = ps - r;
+    rho[k] = min(RVMAX, r/(ps + TINY));
     k += 1;
   );
   hwr += 1; hwr >= rvd ? hwr = 0;
+  rdi += 1; rdi >= 4 ? rdi = 0;
 
   // is this frame voiced? The noise-reduced spectrum between 80 Hz and 3.5 kHz is searched for the regular
   // ripple of a pitch (75 - 350 Hz). It counts when the ripple is clear, the band stands above the noise,
@@ -453,7 +458,7 @@ function frame() local(i, j, k, m, p, w, re, im, pw, sm, c, na, xi, q, v, gh, g,
   k = 0;
   loop(nb,
     j = k+k;
-    hb[k] = gsm[k]; t[k] = rho[k] + 2*rdc[k]; q[k] = apw[k];
+    hb[k] = gsm[k]; t[k] = rho[k]; q[k] = apw[k];
     c[j] = fL[j]; c[j+1] = fL[j+1]; w[j] = fR[j]; w[j+1] = fR[j+1];
     k += 1;
   );
@@ -497,11 +502,6 @@ function frame() local(i, j, k, m, p, w, re, im, pw, sm, c, na, xi, q, v, gh, g,
   // a preserved hit passes the gate too (the frame itself and its neighbors in the line)
   // in dialogue mode a hit only opens the gate when Preserve Transients is above 50 %
   vg = max(vv, rto[rw]*(mode_fx ? 1 : tr_loc));
-  // dialogue mode, reverb: while the voice sounds, only a careful share of what decays is taken for reverb, so the
-  // voice itself is not thinned out. Once the voiced sound has stopped, whatever keeps decaying is the room: it
-  // then belongs to the Reverb part entirely. Parts that rise again (a final S or T) stay with the Signal.
-  rvs[rw] ? vpost = 0 : vpost += 1;
-  wpo = mode_fx ? -1 : min(1, vpost/2);
   // dialogue mode goes easy on the spectrum while the voice sounds - unless a noise print was learned:
   // then the noise is known exactly and is taken out in full, under the voice too
   ind = mode_fx || pmode == 2;
@@ -515,8 +515,7 @@ function frame() local(i, j, k, m, p, w, re, im, pw, sm, c, na, xi, q, v, gh, g,
     // everything that is not voice is noise in dialogue mode; inside the voice the spectral cut is gentler
     // (a bin the noise estimate holds a steady tone in - hum, a whine - is taken out in full under the voice too)
     sv = vg*(1 - (1-gsv)*(ind ? 1 : max(indc[k], atw[k])));
-    rh = t[k]; dc = rh >= 2; dc ? rh -= 2;
-    wpo >= 0 ? rh = (1-wpo)*rh*RVIN + wpo*max(min(1, rh*rvpk), dc*RVPOST);
+    rh = t[k];
     mv = sv*sqrt(1-rh);
     mr = sv - mv;
     ma = 1 - sv;
@@ -589,19 +588,19 @@ function setup() local(i, ht, frt, hz)
   ghp = alloc(nb); gmp = alloc(nb); zet = alloc(nb); csum = alloc(nb+2); gsm = alloc(nb); txi = alloc(nb); tvv = alloc(nb);
   tmpa = alloc(nb); tmpb = alloc(nb); bav = alloc(nb); onk = alloc(nb);
   rvd = max(1, floor(0.05*frt+0.5));
-  psr = alloc(nb); hist = alloc(nb*rvd); kap = alloc(nb); rho = alloc(nb); pkr = alloc(nb);
+  psr = alloc(nb); hist = alloc(nb*rvd); kap = alloc(nb); rho = alloc(nb); pkr = alloc(nb); kph = alloc(nb); rvr = alloc(nb); rvb = alloc(nb); rdh = alloc(nb*4); rdi = 0;
   enhz = hz; ebi = alloc(nb); eacc = alloc(ENB+1); elt = alloc(ENB); ewid = alloc(ENB); ecr = alloc(ENB); ecs = alloc(ENB); ENT = alloc(ENB);
   // average tone of clean close-miked speech per third-octave band (dB, mean power per Hz, relative to its 200 Hz - 4 kHz mean)
   ENT[0] = 0; ENT[1] = 0; ENT[2] = 0; ENT[3] = 2.5; ENT[4] = 7.5; ENT[5] = 7.5; ENT[6] = 6.5; ENT[7] = 8.5; ENT[8] = 7.5; ENT[9] = 5.5; ENT[10] = 2.3; ENT[11] = -0.5; ENT[12] = -3.8; ENT[13] = -5.5; ENT[14] = -9.3; ENT[15] = -11.8; ENT[16] = -14.2; ENT[17] = -16.2; ENT[18] = -19.3; ENT[19] = -22.0; ENT[20] = -25.0; ENT[21] = -28.5; ENT[22] = -33.0;
   i = 0; loop(nb, j = floor(3*log(max(i*hz, 1)/80)*1.442695041 + 0.5); j = (j >= 0 && j < ENB) ? j : ENB; ebi[i] = j; j < ENB ? ewid[j] += 1; i += 1; );
   i = 0; loop(ENB, ewid[i] = max(1, ewid[i]); i += 1; );
   ecount = 0; emode = -1; lsh = 0; llg = 0; glev = 0;
-  enhc = alloc(nb); tvx = alloc(nb); indc = alloc(nb); rdc = alloc(nb);
+  enhc = alloc(nb); tvx = alloc(nb); indc = alloc(nb);
   lk = max(1, floor(LOOKT*frt+0.5)); vhold = floor(VHOLDT*frt+0.5); vrel = max(1, floor(VRELT*frt+0.5));
   rgs = alloc(nb*(lk+1)); rrh = alloc(nb*(lk+1)); rpw = alloc(nb*(lk+1)); rgl = alloc(2*nb*(lk+1)); rgr = alloc(2*nb*(lk+1)); rvk = alloc(lk+2); rto = alloc(lk+2); rvs = alloc(lk+2);
   xlen = lk*hop; xdl = alloc(xlen); xdr = alloc(xlen); xp = 0;
   kv0 = max(1, ceil(80/hz)); kv1 = min(nb-2, floor(3500/hz)); vq0 = floor(srate/350); vq1 = min(nb-1, floor(srate/75));
-  rvpk = 1/(RVMAX*0.5); vpost = 0; vfall = 0; vlev = 0; vfalln = max(2, floor(0.053*frt+0.5));
+  vfall = 0; vlev = 0; vfalln = max(2, floor(0.053*frt+0.5));
   rw = 0; vdist = 100000; vv = 0; vrun = 0; vprev = 0; vlag = 0; vact = 0; vsince = 100000; vsust = floor(0.6*frt);
   wk0 = max(2, ceil(80/hz)); wk1 = min(nb-2, floor(10000/hz)); wn = wk1-wk0+1;
   whl = alloc(WHN*2*nb); whr = alloc(WHN*2*nb); whp = 0; wph = 0;
@@ -616,7 +615,8 @@ function setup() local(i, ht, frt, hz)
   i = 0; loop(nb, cur[i] = BIG; amin[i] = BIG; anz[i] = BIG; bwt[i] = 1; ghp[i] = 1; gmp[i] = 1; gsm[i] = 1; zet[i] = 1; enhc[i] = enhance_db(i*hz); indc[i] = INDLO + (INDHI-INDLO)*max(0, min(1, log(max(i*hz, 1)/1000)/log(3))); i += 1; );
   i = 0; loop(nb*SUBW, sub[i] = BIG; i += 1; );
   kapmin = exp(-2*(6.908/0.35)*rvd*ht); kapmax = exp(-2*(6.908/3)*rvd*ht);
-  i = 0; loop(nb, kap[i] = exp(-2*(6.908/0.7)*rvd*ht); i += 1; );
+  rvdi = 1/rvd; rvup = 1 + RVLR; rvdn = 1 - RVLR*(1-RVQ)/RVQ;
+  i = 0; loop(nb, kap[i] = exp(-2*(6.908/0.7)*rvd*ht); kph[i] = exp(log(kap[i])*rvdi); rvb[i] = RVB0; i += 1; );
   onorm = 1/(1.5*NL);
   a_trk = exp(-ht/0.05); subv = max(2, floor(0.25*frt+0.5)); conf_inc = 1/(0.35*frt);
   c_slew = 1-exp(-ht/0.12);
@@ -643,8 +643,9 @@ function clear_audio()
 (
   memset(inL, 0, NL); memset(inR, 0, NL); memset(outL, 0, NL); memset(outR, 0, NL);
   memset(whl, 0, WHN*2*nb); memset(whr, 0, WHN*2*nb); memset(rql, 0, 2*nb*(lk+1)); memset(rqr, 0, 2*nb*(lk+1));
-  memset(xdl, 0, xlen); memset(xdr, 0, xlen); memset(rgl, 0, 2*nb*(lk+1)); memset(rgr, 0, 2*nb*(lk+1)); memset(rvk, 0, lk+2); memset(rto, 0, lk+2); memset(rvs, 0, lk+2); vpost = 0; vfall = 0; vlev = 0;
+  memset(xdl, 0, xlen); memset(xdr, 0, xlen); memset(rgl, 0, 2*nb*(lk+1)); memset(rgr, 0, 2*nb*(lk+1)); memset(rvk, 0, lk+2); memset(rto, 0, lk+2); memset(rvs, 0, lk+2); vfall = 0; vlev = 0;
   vdist = 100000; vv = 0; vrun = 0; vprev = 0; vact = 0; vsince = 100000;
+  memset(rvr, 0, nb); memset(rdh, 0, nb*4); memset(psr, 0, nb);
   hopc = 0; fsil = 0; ons = 0;
 );
 

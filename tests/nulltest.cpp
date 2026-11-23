@@ -1,3 +1,4 @@
+#include <string>
 // Runs the translated core on raw stereo float32 audio, the same way the reference host (ysfx) runs the JSFX:
 // @init at the given rate, then the slider values, then per block @block and @sample per frame.
 // usage: nulltest in.f32 out.f32 samplerate blocksize [slider values...]
@@ -65,6 +66,22 @@ int main(int argc, char** argv)
     }
     f = std::fopen(argv[2], "wb"); std::fwrite(out.data(), 4, (size_t)n * 2, f); std::fclose(f);
     std::fprintf(stderr, "pdc=%g\n", *fx.var("pdc_delay"));
+    // DUMP=name,name: prints a few entries of these arrays (debugging)
+    if (const char* du = std::getenv("DUMP"))
+    {
+        std::string names(du); size_t st = 0;
+        while (st < names.size())
+        {
+            size_t en = names.find(',', st); if (en == std::string::npos) en = names.size();
+            std::string nm = names.substr(st, en - st); st = en + 1;
+            if (double* v = fx.var(nm.c_str()))
+            {
+                std::fprintf(stderr, "%s=%g:", nm.c_str(), *v);
+                for (int k = 20; k <= 400; k += 38) std::fprintf(stderr, " %.4g", fx.M(*v + k));
+                std::fprintf(stderr, "\n");
+            }
+        }
+    }
     if (const char* fo = std::getenv("STATE_OUT"))
     {
         std::vector<float> d; fx.serializeWrite(d);

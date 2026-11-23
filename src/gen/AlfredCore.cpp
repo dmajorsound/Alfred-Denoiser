@@ -40,7 +40,7 @@ AlfredCore::AlfredCore()
   str_define(90003, "+");
   str_define(90004, "");
   str_define(90005, "%s%.1f dB");
-  str_define(90006, "0.28 beta");
+  str_define(90006, "0.29 beta");
   str_define(90007, "0000007ffffeefffffdfd810");
   str_define(90008, "0000008ffff84ffffc1fffe3");
   str_define(90009, "0000008ffff84ffffb0ffffc");
@@ -298,6 +298,7 @@ double* AlfredCore::var(const char* n)
   if (!std::strcmp(n, "kap")) return &v_kap;
   if (!std::strcmp(n, "kapmax")) return &v_kapmax;
   if (!std::strcmp(n, "kapmin")) return &v_kapmin;
+  if (!std::strcmp(n, "kph")) return &v_kph;
   if (!std::strcmp(n, "kv0")) return &v_kv0;
   if (!std::strcmp(n, "kv1")) return &v_kv1;
   if (!std::strcmp(n, "lac1")) return &v_lac1;
@@ -355,7 +356,8 @@ double* AlfredCore::var(const char* n)
   if (!std::strcmp(n, "ptw")) return &v_ptw;
   if (!std::strcmp(n, "qmax")) return &v_qmax;
   if (!std::strcmp(n, "qtmp")) return &v_qtmp;
-  if (!std::strcmp(n, "rdc")) return &v_rdc;
+  if (!std::strcmp(n, "rdh")) return &v_rdh;
+  if (!std::strcmp(n, "rdi")) return &v_rdi;
   if (!std::strcmp(n, "relt")) return &v_relt;
   if (!std::strcmp(n, "req_clear")) return &v_req_clear;
   if (!std::strcmp(n, "req_learn")) return &v_req_learn;
@@ -368,15 +370,19 @@ double* AlfredCore::var(const char* n)
   if (!std::strcmp(n, "rqr")) return &v_rqr;
   if (!std::strcmp(n, "rrh")) return &v_rrh;
   if (!std::strcmp(n, "rto")) return &v_rto;
+  if (!std::strcmp(n, "rvb")) return &v_rvb;
+  if (!std::strcmp(n, "rvb0")) return &v_rvb0;
   if (!std::strcmp(n, "rvd")) return &v_rvd;
-  if (!std::strcmp(n, "rvin")) return &v_rvin;
+  if (!std::strcmp(n, "rvdi")) return &v_rvdi;
+  if (!std::strcmp(n, "rvdn")) return &v_rvdn;
   if (!std::strcmp(n, "rvk")) return &v_rvk;
+  if (!std::strcmp(n, "rvlr")) return &v_rvlr;
   if (!std::strcmp(n, "rvmax")) return &v_rvmax;
-  if (!std::strcmp(n, "rvpk")) return &v_rvpk;
-  if (!std::strcmp(n, "rvpost")) return &v_rvpost;
+  if (!std::strcmp(n, "rvq")) return &v_rvq;
+  if (!std::strcmp(n, "rvr")) return &v_rvr;
   if (!std::strcmp(n, "rvs")) return &v_rvs;
   if (!std::strcmp(n, "rvt")) return &v_rvt;
-  if (!std::strcmp(n, "rvth")) return &v_rvth;
+  if (!std::strcmp(n, "rvup")) return &v_rvup;
   if (!std::strcmp(n, "rw")) return &v_rw;
   if (!std::strcmp(n, "ser_k")) return &v_ser_k;
   if (!std::strcmp(n, "ser_mode")) return &v_ser_mode;
@@ -588,7 +594,6 @@ double* AlfredCore::var(const char* n)
   if (!std::strcmp(n, "vholdt")) return &v_vholdt;
   if (!std::strcmp(n, "vlag")) return &v_vlag;
   if (!std::strcmp(n, "vlev")) return &v_vlev;
-  if (!std::strcmp(n, "vpost")) return &v_vpost;
   if (!std::strcmp(n, "vprev")) return &v_vprev;
   if (!std::strcmp(n, "vq0")) return &v_vq0;
   if (!std::strcmp(n, "vq1")) return &v_vq1;
@@ -1307,14 +1312,15 @@ double AlfredCore::f_frame()
   }
   (void)(f_prop_smooth(v_tmpa, v_tmpb, 0.08, 2.0));
   (void)((l_frame_hb = DF((v_hist + (v_hwr * v_nb)))));
+  (void)((l_frame_t = DF((v_rdh + (v_rdi * v_nb)))));
   (void)((l_frame_ss = DF(0.0)));
   (void)((l_frame_sa = DF(0.0)));
   (void)((l_frame_sr = DF(0.0)));
   (void)((l_frame_k = DF(0.0)));
   for (int _t310 = loopcount(v_nb); _t310 > 0; --_t310) {
     (void)((l_frame_px = DF(M((v_tmpb + l_frame_k)))));
-    (void)((l_frame_ps = DF(M((v_psr + l_frame_k)))));
-    (void)((l_frame_ps = DF((T(((l_frame_px) > (l_frame_ps) ? 1.0 : 0.0)) ? l_frame_px : ((v_a_rv * l_frame_ps) + ((1.0 - v_a_rv) * l_frame_px))))));
+    (void)((l_frame_pp = DF(M((v_psr + l_frame_k)))));
+    (void)((l_frame_ps = DF((T(((l_frame_px) > (l_frame_pp) ? 1.0 : 0.0)) ? l_frame_px : ((v_a_rv * l_frame_pp) + ((1.0 - v_a_rv) * l_frame_px))))));
     (void)((M((v_psr + l_frame_k)) = DF(l_frame_ps)));
     (void)((l_frame_pd = DF(M((l_frame_hb + l_frame_k)))));
     (void)((M((l_frame_hb + l_frame_k)) = DF(l_frame_ps)));
@@ -1322,28 +1328,35 @@ double AlfredCore::f_frame()
     (void)((l_frame_q = DF((l_frame_ps / (l_frame_pd + v_tiny)))));
     if (T(((T(((T(((l_frame_q) < (0.95) ? 1.0 : 0.0)) && T(((l_frame_q) > (0.03) ? 1.0 : 0.0))) ? 1.0 : 0.0)) && T(((l_frame_pd) > ((0.001 * M((v_pkr + l_frame_k)))) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
       (void)((M((v_kap + l_frame_k)) = DF(([&]() -> double { double _t316 = v_kapmin; double _t317 = ([&]() -> double { double _t318 = v_kapmax; double _t319 = (M((v_kap + l_frame_k)) + (T(((l_frame_q) > (M((v_kap + l_frame_k))) ? 1.0 : 0.0)) ? 0.0034 : (-0.0006))); return _t318 > _t319 ? _t319 : _t318; }()); return _t316 < _t317 ? _t317 : _t316; }()))));
+      (void)((M((v_kph + l_frame_k)) = DF(std::exp((std::log(M((v_kap + l_frame_k))) * v_rvdi)))));
     }
-    (void)((l_frame_x = DF((M((v_kap + l_frame_k)) * (l_frame_pd / (l_frame_ps + v_tiny))))));
-    (void)((l_frame_r = DF((([&]() -> double { double _t321 = 0.0; double _t322 = ([&]() -> double { double _t323 = 1.0; double _t324 = ((l_frame_x - v_rvth) / (1.0 - v_rvth)); return _t323 > _t324 ? _t324 : _t323; }()); return _t321 < _t322 ? _t322 : _t321; }()) * v_rvmax))));
-    (void)((l_frame_rh = DF(M((v_rho + l_frame_k)))));
-    (void)((l_frame_rh = DF((T(((l_frame_r) < (l_frame_rh) ? 1.0 : 0.0)) ? l_frame_r : ((v_a_rise * l_frame_rh) + ((1.0 - v_a_rise) * l_frame_r))))));
-    (void)((M((v_rho + l_frame_k)) = DF(l_frame_rh)));
-    (void)((M((v_rdc + l_frame_k)) = DF((T(((l_frame_q) < (0.9) ? 1.0 : 0.0)) ? 1.0 : 0.0))));
+    (void)((l_frame_x = DF(((M((v_kph + l_frame_k)) * M((v_rvr + l_frame_k))) + (M((v_rvb + l_frame_k)) * M((l_frame_t + l_frame_k)))))));
+    if (T(((T(((l_frame_ps) < (l_frame_pp) ? 1.0 : 0.0)) && T(((l_frame_ps) > ((0.001 * M((v_pkr + l_frame_k)))) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
+      (void)((M((v_rvb + l_frame_k)) = DF(([&]() -> double { double _t322 = 0.0001; double _t323 = ([&]() -> double { double _t324 = 1.0; double _t325 = (M((v_rvb + l_frame_k)) * (T(((l_frame_x) > (l_frame_ps) ? 1.0 : 0.0)) ? v_rvdn : v_rvup)); return _t324 > _t325 ? _t325 : _t324; }()); return _t322 < _t323 ? _t323 : _t322; }()))));
+    }
+    (void)((l_frame_r = DF(([&]() -> double { double _t327 = l_frame_x; double _t328 = l_frame_ps; return _t327 > _t328 ? _t328 : _t327; }()))));
+    (void)((M((v_rvr + l_frame_k)) = DF(l_frame_r)));
+    (void)((M((l_frame_t + l_frame_k)) = DF((l_frame_ps - l_frame_r))));
+    (void)((M((v_rho + l_frame_k)) = DF(([&]() -> double { double _t331 = v_rvmax; double _t332 = (l_frame_r / (l_frame_ps + v_tiny)); return _t331 > _t332 ? _t332 : _t331; }()))));
     (void)((l_frame_k = DF(l_frame_k + 1.0)));
   }
   (void)((v_hwr = DF(v_hwr + 1.0)));
   if (T(((v_hwr) >= (v_rvd) ? 1.0 : 0.0))) {
     (void)((v_hwr = DF(0.0)));
   }
-  (void)((l_frame_x = DF((l_frame_vsx / ([&]() -> double { double _t327 = 1.0; double _t328 = ((v_kv1 - v_kv0) + 1.0); return _t327 < _t328 ? _t328 : _t327; }())))));
+  (void)((v_rdi = DF(v_rdi + 1.0)));
+  if (T(((v_rdi) >= (4.0) ? 1.0 : 0.0))) {
+    (void)((v_rdi = DF(0.0)));
+  }
+  (void)((l_frame_x = DF((l_frame_vsx / ([&]() -> double { double _t334 = 1.0; double _t335 = ((v_kv1 - v_kv0) + 1.0); return _t334 < _t335 ? _t335 : _t334; }())))));
   (void)((l_frame_k = DF(0.0)));
-  for (int _t329 = loopcount(v_nb); _t329 > 0; --_t329) {
+  for (int _t336 = loopcount(v_nb); _t336 > 0; --_t336) {
     (void)((M((v_cb + (l_frame_k + l_frame_k))) = DF((T(((T(((l_frame_k) >= (v_kv0) ? 1.0 : 0.0)) && T(((l_frame_k) <= (v_kv1) ? 1.0 : 0.0))) ? 1.0 : 0.0)) ? (M((v_tvx + l_frame_k)) - l_frame_x) : 0.0))));
     (void)((M((v_cb + ((l_frame_k + l_frame_k) + 1.0))) = DF(0.0)));
     (void)((l_frame_k = DF(l_frame_k + 1.0)));
   }
   (void)((l_frame_k = DF(1.0)));
-  for (int _t332 = loopcount((v_nb - 2.0)); _t332 > 0; --_t332) {
+  for (int _t339 = loopcount((v_nb - 2.0)); _t339 > 0; --_t339) {
     (void)((l_frame_j = DF(((v_nl - l_frame_k) * 2.0))));
     (void)((M((v_cb + l_frame_j)) = DF(M((v_cb + (l_frame_k + l_frame_k))))));
     (void)((M((v_cb + (l_frame_j + 1.0))) = DF(0.0)));
@@ -1354,7 +1367,7 @@ double AlfredCore::f_frame()
   (void)((l_frame_pk = DF(v_vq0)));
   (void)((l_frame_x = DF(M((v_cb + (v_vq0 + v_vq0))))));
   (void)((l_frame_k = DF(v_vq0)));
-  for (int _t335 = loopcount((v_vq1 - v_vq0)); _t335 > 0; --_t335) {
+  for (int _t342 = loopcount((v_vq1 - v_vq0)); _t342 > 0; --_t342) {
     if (T(((M((v_cb + (l_frame_k + l_frame_k)))) > (l_frame_x) ? 1.0 : 0.0))) {
       (void)((l_frame_x = DF(M((v_cb + (l_frame_k + l_frame_k))))));
       (void)((l_frame_pk = DF(l_frame_k)));
@@ -1373,10 +1386,10 @@ double AlfredCore::f_frame()
   (void)(rt_memcpy((v_rql + ((v_rw * 2.0) * v_nb)), v_wql, (2.0 * v_nb)));
   (void)(rt_memcpy((v_rqr + ((v_rw * 2.0) * v_nb)), v_wqr2, (2.0 * v_nb)));
   (void)((l_frame_k = DF(0.0)));
-  for (int _t336 = loopcount(v_nb); _t336 > 0; --_t336) {
+  for (int _t343 = loopcount(v_nb); _t343 > 0; --_t343) {
     (void)((l_frame_j = DF((l_frame_k + l_frame_k))));
     (void)((M((l_frame_hb + l_frame_k)) = DF(M((v_gsm + l_frame_k)))));
-    (void)((M((l_frame_t + l_frame_k)) = DF((M((v_rho + l_frame_k)) + (2.0 * M((v_rdc + l_frame_k)))))));
+    (void)((M((l_frame_t + l_frame_k)) = DF(M((v_rho + l_frame_k)))));
     (void)((M((l_frame_q + l_frame_k)) = DF(M((v_apw + l_frame_k)))));
     (void)((M((l_frame_c + l_frame_j)) = DF(M((v_fl + l_frame_j)))));
     (void)((M((l_frame_c + (l_frame_j + 1.0))) = DF(M((v_fl + (l_frame_j + 1.0))))));
@@ -1405,7 +1418,7 @@ double AlfredCore::f_frame()
     (void)((v_subc = DF(0.0)));
     (void)((l_frame_hb = DF((v_sub + (v_subi * v_nb)))));
     (void)((l_frame_k = DF(0.0)));
-    for (int _t347 = loopcount(v_nb); _t347 > 0; --_t347) {
+    for (int _t354 = loopcount(v_nb); _t354 > 0; --_t354) {
       (void)((M((l_frame_hb + l_frame_k)) = DF(M((v_cur + l_frame_k)))));
       (void)((M((v_cur + l_frame_k)) = DF(M((v_ars + l_frame_k)))));
       (void)((l_frame_k = DF(l_frame_k + 1.0)));
@@ -1415,11 +1428,11 @@ double AlfredCore::f_frame()
       (void)((v_subi = DF(0.0)));
     }
     (void)((l_frame_k = DF(0.0)));
-    for (int _t350 = loopcount(v_nb); _t350 > 0; --_t350) {
+    for (int _t357 = loopcount(v_nb); _t357 > 0; --_t357) {
       (void)((l_frame_c = DF(M((v_sub + l_frame_k)))));
       (void)((l_frame_i = DF(1.0)));
-      for (int _t351 = loopcount((v_subw - 1.0)); _t351 > 0; --_t351) {
-        (void)((l_frame_c = DF(([&]() -> double { double _t352 = l_frame_c; double _t353 = M((v_sub + ((l_frame_i * v_nb) + l_frame_k))); return _t352 > _t353 ? _t353 : _t352; }()))));
+      for (int _t358 = loopcount((v_subw - 1.0)); _t358 > 0; --_t358) {
+        (void)((l_frame_c = DF(([&]() -> double { double _t359 = l_frame_c; double _t360 = M((v_sub + ((l_frame_i * v_nb) + l_frame_k))); return _t359 > _t360 ? _t360 : _t359; }()))));
         (void)((l_frame_i = DF(l_frame_i + 1.0)));
       }
       (void)((M((v_amin + l_frame_k)) = DF(l_frame_c)));
@@ -1444,7 +1457,7 @@ double AlfredCore::f_frame()
   }
   (void)((l_frame_vt = DF(0.0)));
   (void)((l_frame_k = DF(0.0)));
-  for (int _t355 = loopcount((v_lk + 1.0)); _t355 > 0; --_t355) {
+  for (int _t362 = loopcount((v_lk + 1.0)); _t362 > 0; --_t362) {
     if (T(M((v_rvk + l_frame_k)))) {
       (void)((l_frame_vt = DF(1.0)));
     }
@@ -1455,18 +1468,12 @@ double AlfredCore::f_frame()
   } else {
     (void)((v_vdist = DF(v_vdist + 1.0)));
   }
-  (void)((l_frame_vt = DF((T(((v_vdist) <= ((v_vhold * v_rvt)) ? 1.0 : 0.0)) ? 1.0 : ([&]() -> double { double _t356 = 0.0; double _t357 = (1.0 - ((v_vdist - (v_vhold * v_rvt)) / ([&]() -> double { double _t358 = 2.0; double _t359 = (v_vrel * v_rvt); return _t358 < _t359 ? _t359 : _t358; }()))); return _t356 < _t357 ? _t357 : _t356; }())))));
-  (void)((v_vv = DF(v_vv + ([&]() -> double { double _t360 = (-1.0); double _t361 = ([&]() -> double { double _t362 = 0.5; double _t363 = (l_frame_vt - v_vv); return _t362 > _t363 ? _t363 : _t362; }()); return _t360 < _t361 ? _t361 : _t360; }()))));
+  (void)((l_frame_vt = DF((T(((v_vdist) <= ((v_vhold * v_rvt)) ? 1.0 : 0.0)) ? 1.0 : ([&]() -> double { double _t363 = 0.0; double _t364 = (1.0 - ((v_vdist - (v_vhold * v_rvt)) / ([&]() -> double { double _t365 = 2.0; double _t366 = (v_vrel * v_rvt); return _t365 < _t366 ? _t366 : _t365; }()))); return _t363 < _t364 ? _t364 : _t363; }())))));
+  (void)((v_vv = DF(v_vv + ([&]() -> double { double _t367 = (-1.0); double _t368 = ([&]() -> double { double _t369 = 0.5; double _t370 = (l_frame_vt - v_vv); return _t369 > _t370 ? _t370 : _t369; }()); return _t367 < _t368 ? _t368 : _t367; }()))));
   if (T(v_mode_fx)) {
     (void)((v_vv = DF(1.0)));
   }
-  (void)((l_frame_vg = DF(([&]() -> double { double _t364 = v_vv; double _t365 = (M((v_rto + v_rw)) * (T(v_mode_fx) ? 1.0 : v_tr_loc)); return _t364 < _t365 ? _t365 : _t364; }()))));
-  if (T(M((v_rvs + v_rw)))) {
-    (void)((v_vpost = DF(0.0)));
-  } else {
-    (void)((v_vpost = DF(v_vpost + 1.0)));
-  }
-  (void)((l_frame_wpo = DF((T(v_mode_fx) ? (-1.0) : ([&]() -> double { double _t366 = 1.0; double _t367 = (v_vpost / 2.0); return _t366 > _t367 ? _t367 : _t366; }())))));
+  (void)((l_frame_vg = DF(([&]() -> double { double _t371 = v_vv; double _t372 = (M((v_rto + v_rw)) * (T(v_mode_fx) ? 1.0 : v_tr_loc)); return _t371 < _t372 ? _t372 : _t371; }()))));
   (void)((l_frame_ind = DF(((T(v_mode_fx) || T(EQ(v_pmode, 2.0))) ? 1.0 : 0.0))));
   (void)((l_frame_hb = DF((v_rgs + (v_rw * v_nb)))));
   (void)((l_frame_t = DF((v_rrh + (v_rw * v_nb)))));
@@ -1480,18 +1487,11 @@ double AlfredCore::f_frame()
   (void)((l_frame_sa = DF(0.0)));
   (void)((l_frame_sr = DF(0.0)));
   (void)((l_frame_k = DF(0.0)));
-  for (int _t368 = loopcount(v_nb); _t368 > 0; --_t368) {
+  for (int _t373 = loopcount(v_nb); _t373 > 0; --_t373) {
     (void)((l_frame_gsv = DF(M((l_frame_hb + l_frame_k)))));
     (void)((l_frame_pw = DF(M((l_frame_q + l_frame_k)))));
-    (void)((l_frame_sv = DF((l_frame_vg * (1.0 - ((1.0 - l_frame_gsv) * (T(l_frame_ind) ? 1.0 : ([&]() -> double { double _t369 = M((v_indc + l_frame_k)); double _t370 = M((v_atw + l_frame_k)); return _t369 < _t370 ? _t370 : _t369; }()))))))));
+    (void)((l_frame_sv = DF((l_frame_vg * (1.0 - ((1.0 - l_frame_gsv) * (T(l_frame_ind) ? 1.0 : ([&]() -> double { double _t374 = M((v_indc + l_frame_k)); double _t375 = M((v_atw + l_frame_k)); return _t374 < _t375 ? _t375 : _t374; }()))))))));
     (void)((l_frame_rh = DF(M((l_frame_t + l_frame_k)))));
-    (void)((l_frame_dc = DF(((l_frame_rh) >= (2.0) ? 1.0 : 0.0))));
-    if (T(l_frame_dc)) {
-      (void)((l_frame_rh = DF(l_frame_rh - 2.0)));
-    }
-    if (T(((l_frame_wpo) >= (0.0) ? 1.0 : 0.0))) {
-      (void)((l_frame_rh = DF(((((1.0 - l_frame_wpo) * l_frame_rh) * v_rvin) + (l_frame_wpo * ([&]() -> double { double _t371 = ([&]() -> double { double _t373 = 1.0; double _t374 = (l_frame_rh * v_rvpk); return _t373 > _t374 ? _t374 : _t373; }()); double _t372 = (l_frame_dc * v_rvpost); return _t371 < _t372 ? _t372 : _t371; }()))))));
-    }
     (void)((l_frame_mv = DF((l_frame_sv * std::sqrt(std::fabs((1.0 - l_frame_rh)))))));
     (void)((l_frame_mr = DF((l_frame_sv - l_frame_mv))));
     (void)((l_frame_ma = DF((1.0 - l_frame_sv))));
@@ -1520,25 +1520,25 @@ double AlfredCore::f_frame()
     }
     (void)((l_frame_v = DF(((l_frame_g * l_frame_g) * l_frame_pw))));
     if (T(v_ana)) {
-      (void)(([&]() -> double { double _t384 = (v_ds + l_frame_k); double _t383 = ((l_frame_v - M((v_ds + l_frame_k))) * 0.25); return (M(_t384) = DF(M(_t384) + _t383)); }()));
+      (void)(([&]() -> double { double _t385 = (v_ds + l_frame_k); double _t384 = ((l_frame_v - M((v_ds + l_frame_k))) * 0.25); return (M(_t385) = DF(M(_t385) + _t384)); }()));
     }
     (void)((l_frame_ss = DF(l_frame_ss + l_frame_v)));
-    (void)(([&]() -> double { double _t386 = (v_eacc + M((v_ebi + l_frame_k))); double _t385 = ((l_frame_mv * l_frame_mv) * l_frame_pw); return (M(_t386) = DF(M(_t386) + _t385)); }()));
+    (void)(([&]() -> double { double _t387 = (v_eacc + M((v_ebi + l_frame_k))); double _t386 = ((l_frame_mv * l_frame_mv) * l_frame_pw); return (M(_t387) = DF(M(_t387) + _t386)); }()));
     (void)((l_frame_x = DF(((((M((l_frame_ql + l_frame_j)) * M((l_frame_ql + l_frame_j))) + (M((l_frame_ql + (l_frame_j + 1.0))) * M((l_frame_ql + (l_frame_j + 1.0))))) + (M((l_frame_qr + l_frame_j)) * M((l_frame_qr + l_frame_j)))) + (M((l_frame_qr + (l_frame_j + 1.0))) * M((l_frame_qr + (l_frame_j + 1.0))))))));
     (void)((l_frame_v = DF((v_ga * l_frame_ma))));
     (void)((l_frame_v = DF(((l_frame_v * l_frame_v) * (l_frame_pw + l_frame_x)))));
     if (T(v_ana)) {
-      (void)(([&]() -> double { double _t388 = (v_da + l_frame_k); double _t387 = ((l_frame_v - M((v_da + l_frame_k))) * 0.25); return (M(_t388) = DF(M(_t388) + _t387)); }()));
+      (void)(([&]() -> double { double _t389 = (v_da + l_frame_k); double _t388 = ((l_frame_v - M((v_da + l_frame_k))) * 0.25); return (M(_t389) = DF(M(_t389) + _t388)); }()));
     }
     (void)((l_frame_sa = DF(l_frame_sa + l_frame_v)));
     (void)((l_frame_v = DF((v_gr * l_frame_mr))));
     (void)((l_frame_v = DF((((l_frame_v * l_frame_v) * l_frame_pw) + ((((v_gr * v_gr) * (1.0 - l_frame_ma)) * (1.0 - l_frame_ma)) * l_frame_x)))));
     if (T(v_ana)) {
-      (void)(([&]() -> double { double _t390 = (v_dr + l_frame_k); double _t389 = ((l_frame_v - M((v_dr + l_frame_k))) * 0.25); return (M(_t390) = DF(M(_t390) + _t389)); }()));
+      (void)(([&]() -> double { double _t391 = (v_dr + l_frame_k); double _t390 = ((l_frame_v - M((v_dr + l_frame_k))) * 0.25); return (M(_t391) = DF(M(_t391) + _t390)); }()));
     }
     (void)((l_frame_sr = DF(l_frame_sr + l_frame_v)));
     if (T(v_ana)) {
-      (void)(([&]() -> double { double _t392 = (v_di + l_frame_k); double _t391 = ((l_frame_pw + (l_frame_x - M((v_di + l_frame_k)))) * 0.25); return (M(_t392) = DF(M(_t392) + _t391)); }()));
+      (void)(([&]() -> double { double _t393 = (v_di + l_frame_k); double _t392 = ((l_frame_pw + (l_frame_x - M((v_di + l_frame_k)))) * 0.25); return (M(_t393) = DF(M(_t393) + _t392)); }()));
     }
     (void)((l_frame_k = DF(l_frame_k + 1.0)));
   }
@@ -1547,23 +1547,23 @@ double AlfredCore::f_frame()
   (void)((v_lvr = DF(v_lvr + ((l_frame_sr - v_lvr) * 0.3))));
   (void)((l_frame_x = DF(0.0)));
   (void)((l_frame_k = DF(0.0)));
-  for (int _t393 = loopcount(v_enb); _t393 > 0; --_t393) {
+  for (int _t394 = loopcount(v_enb); _t394 > 0; --_t394) {
     (void)((l_frame_x = DF(l_frame_x + M((v_eacc + l_frame_k)))));
     (void)((l_frame_k = DF(l_frame_k + 1.0)));
   }
   if (T(((T(((T((T(v_mode_fx) ? 0.0 : 1.0)) && T(((l_frame_vg) > (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0)) && T(((l_frame_x) > (0.0) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
     (void)((v_ecount = DF(v_ecount + 1.0)));
-    (void)((l_frame_v = DF(([&]() -> double { double _t394 = (1.0 / v_ecount); double _t395 = 0.002; return _t394 < _t395 ? _t395 : _t394; }()))));
+    (void)((l_frame_v = DF(([&]() -> double { double _t395 = (1.0 / v_ecount); double _t396 = 0.002; return _t395 < _t396 ? _t396 : _t395; }()))));
     (void)((l_frame_k = DF(0.0)));
-    for (int _t396 = loopcount(v_enb); _t396 > 0; --_t396) {
-      (void)(([&]() -> double { double _t398 = (v_elt + l_frame_k); double _t397 = (((M((v_eacc + l_frame_k)) / M((v_ewid + l_frame_k))) - M((v_elt + l_frame_k))) * l_frame_v); return (M(_t398) = DF(M(_t398) + _t397)); }()));
+    for (int _t397 = loopcount(v_enb); _t397 > 0; --_t397) {
+      (void)(([&]() -> double { double _t399 = (v_elt + l_frame_k); double _t398 = (((M((v_eacc + l_frame_k)) / M((v_ewid + l_frame_k))) - M((v_elt + l_frame_k))) * l_frame_v); return (M(_t399) = DF(M(_t399) + _t398)); }()));
       (void)((l_frame_k = DF(l_frame_k + 1.0)));
     }
     (void)((v_lsh = DF(v_lsh + ((l_frame_x - v_lsh) * 0.16))));
     (void)((l_frame_v = DF((10.0 * std::log10((v_lsh + v_tiny))))));
-    (void)((v_llg = DF((T(((v_ecount) <= (1.0) ? 1.0 : 0.0)) ? l_frame_v : (v_llg + ((l_frame_v - v_llg) * ([&]() -> double { double _t399 = (1.0 / v_ecount); double _t400 = 0.0035; return _t399 < _t400 ? _t400 : _t399; }())))))));
+    (void)((v_llg = DF((T(((v_ecount) <= (1.0) ? 1.0 : 0.0)) ? l_frame_v : (v_llg + ((l_frame_v - v_llg) * ([&]() -> double { double _t400 = (1.0 / v_ecount); double _t401 = 0.0035; return _t400 < _t401 ? _t401 : _t400; }())))))));
     (void)((l_frame_v = DF(l_frame_v - v_llg)));
-    (void)((l_frame_v = DF((T(((T(((l_frame_v) < ((-15.0)) ? 1.0 : 0.0)) || T(((v_ecount) < (40.0) ? 1.0 : 0.0))) ? 1.0 : 0.0)) ? 0.0 : ([&]() -> double { double _t401 = (-v_enlmax); double _t402 = ([&]() -> double { double _t403 = v_enlmax; double _t404 = ((-v_enlr) * l_frame_v); return _t403 > _t404 ? _t404 : _t403; }()); return _t401 < _t402 ? _t402 : _t401; }())))));
+    (void)((l_frame_v = DF((T(((T(((l_frame_v) < ((-15.0)) ? 1.0 : 0.0)) || T(((v_ecount) < (40.0) ? 1.0 : 0.0))) ? 1.0 : 0.0)) ? 0.0 : ([&]() -> double { double _t402 = (-v_enlmax); double _t403 = ([&]() -> double { double _t404 = v_enlmax; double _t405 = ((-v_enlr) * l_frame_v); return _t404 > _t405 ? _t405 : _t404; }()); return _t402 < _t403 ? _t403 : _t402; }())))));
     (void)((v_glev = DF(v_glev + (((l_frame_v * v_enh_amt) - v_glev) * 0.2))));
   } else {
     (void)((v_glev = DF(v_glev * 0.9)));
@@ -1577,11 +1577,11 @@ double AlfredCore::f_frame()
   (void)(rt_fft(1, v_fr, v_nl));
   (void)((l_frame_i = DF(0.0)));
   double _r = 0.0;
-  for (int _t405 = loopcount(v_nl); _t405 > 0; --_t405) {
+  for (int _t406 = loopcount(v_nl); _t406 > 0; --_t406) {
     (void)((l_frame_j = DF(BAND((l_frame_p + l_frame_i), l_frame_m))));
     (void)((l_frame_w = DF((M((v_win + l_frame_i)) * v_onorm))));
-    (void)(([&]() -> double { double _t407 = (v_outl + l_frame_j); double _t406 = (M((v_fl + (l_frame_i + l_frame_i))) * l_frame_w); return (M(_t407) = DF(M(_t407) + _t406)); }()));
-    (void)(([&]() -> double { double _t409 = (v_outr + l_frame_j); double _t408 = (M((v_fr + (l_frame_i + l_frame_i))) * l_frame_w); return (M(_t409) = DF(M(_t409) + _t408)); }()));
+    (void)(([&]() -> double { double _t408 = (v_outl + l_frame_j); double _t407 = (M((v_fl + (l_frame_i + l_frame_i))) * l_frame_w); return (M(_t408) = DF(M(_t408) + _t407)); }()));
+    (void)(([&]() -> double { double _t410 = (v_outr + l_frame_j); double _t409 = (M((v_fr + (l_frame_i + l_frame_i))) * l_frame_w); return (M(_t410) = DF(M(_t410) + _t409)); }()));
     _r = (l_frame_i = DF(l_frame_i + 1.0));
   }
   return _r;
@@ -1594,7 +1594,7 @@ double AlfredCore::f_ldec(double str_, double dst_, double n_)
   l_ldec_n = n_;
   (void)((l_ldec_i = DF(0.0)));
   double _r = 0.0;
-  for (int _t410 = loopcount(l_ldec_n); _t410 > 0; --_t410) {
+  for (int _t411 = loopcount(l_ldec_n); _t411 > 0; --_t411) {
     (void)((l_ldec_c = DF(str_getchar(l_ldec_str, l_ldec_i))));
     (void)((M((l_ldec_dst + l_ldec_i)) = DF((T(((l_ldec_c) <= (57.0) ? 1.0 : 0.0)) ? (l_ldec_c - 48.0) : ((l_ldec_c - 97.0) + 10.0)))));
     _r = (l_ldec_i = DF(l_ldec_i + 1.0));
@@ -1656,12 +1656,17 @@ double AlfredCore::f_setup()
   (void)((v_tmpb = DF(f_alloc(v_nb))));
   (void)((v_bav = DF(f_alloc(v_nb))));
   (void)((v_onk = DF(f_alloc(v_nb))));
-  (void)((v_rvd = DF(([&]() -> double { double _t412 = 1.0; double _t413 = std::floor(((0.05 * l_setup_frt) + 0.5)); return _t412 < _t413 ? _t413 : _t412; }()))));
+  (void)((v_rvd = DF(([&]() -> double { double _t413 = 1.0; double _t414 = std::floor(((0.05 * l_setup_frt) + 0.5)); return _t413 < _t414 ? _t414 : _t413; }()))));
   (void)((v_psr = DF(f_alloc(v_nb))));
   (void)((v_hist = DF(f_alloc((v_nb * v_rvd)))));
   (void)((v_kap = DF(f_alloc(v_nb))));
   (void)((v_rho = DF(f_alloc(v_nb))));
   (void)((v_pkr = DF(f_alloc(v_nb))));
+  (void)((v_kph = DF(f_alloc(v_nb))));
+  (void)((v_rvr = DF(f_alloc(v_nb))));
+  (void)((v_rvb = DF(f_alloc(v_nb))));
+  (void)((v_rdh = DF(f_alloc((v_nb * 4.0)))));
+  (void)((v_rdi = DF(0.0)));
   (void)((v_enhz = DF(l_setup_hz)));
   (void)((v_ebi = DF(f_alloc(v_nb))));
   (void)((v_eacc = DF(f_alloc((v_enb + 1.0)))));
@@ -1694,18 +1699,18 @@ double AlfredCore::f_setup()
   (void)((M((v_ent + 21.0)) = DF((-28.5))));
   (void)((M((v_ent + 22.0)) = DF((-33.0))));
   (void)((l_setup_i = DF(0.0)));
-  for (int _t437 = loopcount(v_nb); _t437 > 0; --_t437) {
-    (void)((v_j = DF(std::floor((((3.0 * std::log((([&]() -> double { double _t438 = (l_setup_i * l_setup_hz); double _t439 = 1.0; return _t438 < _t439 ? _t439 : _t438; }()) / 80.0))) * 1.442695041) + 0.5)))));
+  for (int _t438 = loopcount(v_nb); _t438 > 0; --_t438) {
+    (void)((v_j = DF(std::floor((((3.0 * std::log((([&]() -> double { double _t439 = (l_setup_i * l_setup_hz); double _t440 = 1.0; return _t439 < _t440 ? _t440 : _t439; }()) / 80.0))) * 1.442695041) + 0.5)))));
     (void)((v_j = DF((T(((T(((v_j) >= (0.0) ? 1.0 : 0.0)) && T(((v_j) < (v_enb) ? 1.0 : 0.0))) ? 1.0 : 0.0)) ? v_j : v_enb))));
     (void)((M((v_ebi + l_setup_i)) = DF(v_j)));
     if (T(((v_j) < (v_enb) ? 1.0 : 0.0))) {
-      (void)(([&]() -> double { double _t442 = (v_ewid + v_j); double _t441 = 1.0; return (M(_t442) = DF(M(_t442) + _t441)); }()));
+      (void)(([&]() -> double { double _t443 = (v_ewid + v_j); double _t442 = 1.0; return (M(_t443) = DF(M(_t443) + _t442)); }()));
     }
     (void)((l_setup_i = DF(l_setup_i + 1.0)));
   }
   (void)((l_setup_i = DF(0.0)));
-  for (int _t443 = loopcount(v_enb); _t443 > 0; --_t443) {
-    (void)((M((v_ewid + l_setup_i)) = DF(([&]() -> double { double _t444 = 1.0; double _t445 = M((v_ewid + l_setup_i)); return _t444 < _t445 ? _t445 : _t444; }()))));
+  for (int _t444 = loopcount(v_enb); _t444 > 0; --_t444) {
+    (void)((M((v_ewid + l_setup_i)) = DF(([&]() -> double { double _t445 = 1.0; double _t446 = M((v_ewid + l_setup_i)); return _t445 < _t446 ? _t446 : _t445; }()))));
     (void)((l_setup_i = DF(l_setup_i + 1.0)));
   }
   (void)((v_ecount = DF(0.0)));
@@ -1716,10 +1721,9 @@ double AlfredCore::f_setup()
   (void)((v_enhc = DF(f_alloc(v_nb))));
   (void)((v_tvx = DF(f_alloc(v_nb))));
   (void)((v_indc = DF(f_alloc(v_nb))));
-  (void)((v_rdc = DF(f_alloc(v_nb))));
-  (void)((v_lk = DF(([&]() -> double { double _t447 = 1.0; double _t448 = std::floor(((v_lookt * l_setup_frt) + 0.5)); return _t447 < _t448 ? _t448 : _t447; }()))));
+  (void)((v_lk = DF(([&]() -> double { double _t448 = 1.0; double _t449 = std::floor(((v_lookt * l_setup_frt) + 0.5)); return _t448 < _t449 ? _t449 : _t448; }()))));
   (void)((v_vhold = DF(std::floor(((v_vholdt * l_setup_frt) + 0.5)))));
-  (void)((v_vrel = DF(([&]() -> double { double _t449 = 1.0; double _t450 = std::floor(((v_vrelt * l_setup_frt) + 0.5)); return _t449 < _t450 ? _t450 : _t449; }()))));
+  (void)((v_vrel = DF(([&]() -> double { double _t450 = 1.0; double _t451 = std::floor(((v_vrelt * l_setup_frt) + 0.5)); return _t450 < _t451 ? _t451 : _t450; }()))));
   (void)((v_rgs = DF(f_alloc((v_nb * (v_lk + 1.0))))));
   (void)((v_rrh = DF(f_alloc((v_nb * (v_lk + 1.0))))));
   (void)((v_rpw = DF(f_alloc((v_nb * (v_lk + 1.0))))));
@@ -1732,15 +1736,13 @@ double AlfredCore::f_setup()
   (void)((v_xdl = DF(f_alloc(v_xlen))));
   (void)((v_xdr = DF(f_alloc(v_xlen))));
   (void)((v_xp = DF(0.0)));
-  (void)((v_kv0 = DF(([&]() -> double { double _t451 = 1.0; double _t452 = std::ceil((80.0 / l_setup_hz)); return _t451 < _t452 ? _t452 : _t451; }()))));
-  (void)((v_kv1 = DF(([&]() -> double { double _t453 = (v_nb - 2.0); double _t454 = std::floor((3500.0 / l_setup_hz)); return _t453 > _t454 ? _t454 : _t453; }()))));
+  (void)((v_kv0 = DF(([&]() -> double { double _t452 = 1.0; double _t453 = std::ceil((80.0 / l_setup_hz)); return _t452 < _t453 ? _t453 : _t452; }()))));
+  (void)((v_kv1 = DF(([&]() -> double { double _t454 = (v_nb - 2.0); double _t455 = std::floor((3500.0 / l_setup_hz)); return _t454 > _t455 ? _t455 : _t454; }()))));
   (void)((v_vq0 = DF(std::floor((v_srate / 350.0)))));
-  (void)((v_vq1 = DF(([&]() -> double { double _t455 = (v_nb - 1.0); double _t456 = std::floor((v_srate / 75.0)); return _t455 > _t456 ? _t456 : _t455; }()))));
-  (void)((v_rvpk = DF((1.0 / (v_rvmax * 0.5)))));
-  (void)((v_vpost = DF(0.0)));
+  (void)((v_vq1 = DF(([&]() -> double { double _t456 = (v_nb - 1.0); double _t457 = std::floor((v_srate / 75.0)); return _t456 > _t457 ? _t457 : _t456; }()))));
   (void)((v_vfall = DF(0.0)));
   (void)((v_vlev = DF(0.0)));
-  (void)((v_vfalln = DF(([&]() -> double { double _t457 = 2.0; double _t458 = std::floor(((0.053 * l_setup_frt) + 0.5)); return _t457 < _t458 ? _t458 : _t457; }()))));
+  (void)((v_vfalln = DF(([&]() -> double { double _t458 = 2.0; double _t459 = std::floor(((0.053 * l_setup_frt) + 0.5)); return _t458 < _t459 ? _t459 : _t458; }()))));
   (void)((v_rw = DF(0.0)));
   (void)((v_vdist = DF(100000.0)));
   (void)((v_vv = DF(0.0)));
@@ -1750,8 +1752,8 @@ double AlfredCore::f_setup()
   (void)((v_vact = DF(0.0)));
   (void)((v_vsince = DF(100000.0)));
   (void)((v_vsust = DF(std::floor((0.6 * l_setup_frt)))));
-  (void)((v_wk0 = DF(([&]() -> double { double _t459 = 2.0; double _t460 = std::ceil((80.0 / l_setup_hz)); return _t459 < _t460 ? _t460 : _t459; }()))));
-  (void)((v_wk1 = DF(([&]() -> double { double _t461 = (v_nb - 2.0); double _t462 = std::floor((10000.0 / l_setup_hz)); return _t461 > _t462 ? _t462 : _t461; }()))));
+  (void)((v_wk0 = DF(([&]() -> double { double _t460 = 2.0; double _t461 = std::ceil((80.0 / l_setup_hz)); return _t460 < _t461 ? _t461 : _t460; }()))));
+  (void)((v_wk1 = DF(([&]() -> double { double _t462 = (v_nb - 2.0); double _t463 = std::floor((10000.0 / l_setup_hz)); return _t462 > _t463 ? _t463 : _t462; }()))));
   (void)((v_wn = DF(((v_wk1 - v_wk0) + 1.0))));
   (void)((v_whl = DF(f_alloc(((v_whn * 2.0) * v_nb)))));
   (void)((v_whr = DF(f_alloc(((v_whn * 2.0) * v_nb)))));
@@ -1785,12 +1787,12 @@ double AlfredCore::f_setup()
   (void)((v_da = DF(f_alloc(v_nb))));
   (void)((v_dr = DF(f_alloc(v_nb))));
   (void)((l_setup_i = DF(0.0)));
-  for (int _t463 = loopcount(v_nl); _t463 > 0; --_t463) {
+  for (int _t464 = loopcount(v_nl); _t464 > 0; --_t464) {
     (void)((M((v_win + l_setup_i)) = DF((0.5 - (0.5 * std::cos(((2.0 * 3.141592653589793) * (l_setup_i / v_nl))))))));
     (void)((l_setup_i = DF(l_setup_i + 1.0)));
   }
   (void)((l_setup_i = DF(0.0)));
-  for (int _t465 = loopcount(v_nb); _t465 > 0; --_t465) {
+  for (int _t466 = loopcount(v_nb); _t466 > 0; --_t466) {
     (void)((M((v_cur + l_setup_i)) = DF(v_big)));
     (void)((M((v_amin + l_setup_i)) = DF(v_big)));
     (void)((M((v_anz + l_setup_i)) = DF(v_big)));
@@ -1799,25 +1801,30 @@ double AlfredCore::f_setup()
     (void)((M((v_gmp + l_setup_i)) = DF(1.0)));
     (void)((M((v_gsm + l_setup_i)) = DF(1.0)));
     (void)((M((v_zet + l_setup_i)) = DF(1.0)));
-    (void)(([&]() -> double { double _t475 = (v_enhc + l_setup_i); double _t474 = f_enhance_db((l_setup_i * l_setup_hz)); return M(_t475) = DF(_t474); }()));
-    (void)((M((v_indc + l_setup_i)) = DF((v_indlo + ((v_indhi - v_indlo) * ([&]() -> double { double _t476 = 0.0; double _t477 = ([&]() -> double { double _t478 = 1.0; double _t479 = (std::log((([&]() -> double { double _t480 = (l_setup_i * l_setup_hz); double _t481 = 1.0; return _t480 < _t481 ? _t481 : _t480; }()) / 1000.0)) / std::log(3.0)); return _t478 > _t479 ? _t479 : _t478; }()); return _t476 < _t477 ? _t477 : _t476; }()))))));
+    (void)(([&]() -> double { double _t476 = (v_enhc + l_setup_i); double _t475 = f_enhance_db((l_setup_i * l_setup_hz)); return M(_t476) = DF(_t475); }()));
+    (void)((M((v_indc + l_setup_i)) = DF((v_indlo + ((v_indhi - v_indlo) * ([&]() -> double { double _t477 = 0.0; double _t478 = ([&]() -> double { double _t479 = 1.0; double _t480 = (std::log((([&]() -> double { double _t481 = (l_setup_i * l_setup_hz); double _t482 = 1.0; return _t481 < _t482 ? _t482 : _t481; }()) / 1000.0)) / std::log(3.0)); return _t479 > _t480 ? _t480 : _t479; }()); return _t477 < _t478 ? _t478 : _t477; }()))))));
     (void)((l_setup_i = DF(l_setup_i + 1.0)));
   }
   (void)((l_setup_i = DF(0.0)));
-  for (int _t483 = loopcount((v_nb * v_subw)); _t483 > 0; --_t483) {
+  for (int _t484 = loopcount((v_nb * v_subw)); _t484 > 0; --_t484) {
     (void)((M((v_sub + l_setup_i)) = DF(v_big)));
     (void)((l_setup_i = DF(l_setup_i + 1.0)));
   }
   (void)((v_kapmin = DF(std::exp(((((-2.0) * (6.908 / 0.35)) * v_rvd) * l_setup_ht)))));
   (void)((v_kapmax = DF(std::exp(((((-2.0) * (6.908 / 3.0)) * v_rvd) * l_setup_ht)))));
+  (void)((v_rvdi = DF((1.0 / v_rvd))));
+  (void)((v_rvup = DF((1.0 + v_rvlr))));
+  (void)((v_rvdn = DF((1.0 - (v_rvlr * ((1.0 - v_rvq) / v_rvq))))));
   (void)((l_setup_i = DF(0.0)));
-  for (int _t485 = loopcount(v_nb); _t485 > 0; --_t485) {
+  for (int _t486 = loopcount(v_nb); _t486 > 0; --_t486) {
     (void)((M((v_kap + l_setup_i)) = DF(std::exp(((((-2.0) * (6.908 / 0.7)) * v_rvd) * l_setup_ht)))));
+    (void)((M((v_kph + l_setup_i)) = DF(std::exp((std::log(M((v_kap + l_setup_i))) * v_rvdi)))));
+    (void)((M((v_rvb + l_setup_i)) = DF(v_rvb0)));
     (void)((l_setup_i = DF(l_setup_i + 1.0)));
   }
   (void)((v_onorm = DF((1.0 / (1.5 * v_nl)))));
   (void)((v_a_trk = DF(std::exp(((-l_setup_ht) / 0.05)))));
-  (void)((v_subv = DF(([&]() -> double { double _t487 = 2.0; double _t488 = std::floor(((0.25 * l_setup_frt) + 0.5)); return _t487 < _t488 ? _t488 : _t487; }()))));
+  (void)((v_subv = DF(([&]() -> double { double _t490 = 2.0; double _t491 = std::floor(((0.25 * l_setup_frt) + 0.5)); return _t490 < _t491 ? _t491 : _t490; }()))));
   (void)((v_conf_inc = DF((1.0 / (0.35 * l_setup_frt)))));
   (void)((v_c_slew = DF((1.0 - std::exp(((-l_setup_ht) / 0.12))))));
   (void)((v_c_eavg = DF((1.0 - std::exp(((-l_setup_ht) / 0.06))))));
@@ -1827,14 +1834,14 @@ double AlfredCore::f_setup()
   (void)((v_a_z = DF(std::exp(((-l_setup_ht) / 0.03)))));
   (void)((v_ca_fast = DF(std::exp((std::log(0.2) * (l_setup_ht / 0.016))))));
   (void)((l_setup_i = DF(0.0)));
-  for (int _t489 = loopcount(v_nb); _t489 > 0; --_t489) {
+  for (int _t492 = loopcount(v_nb); _t492 > 0; --_t492) {
     (void)((M((v_cac + l_setup_i)) = DF((T((((l_setup_i / v_srate)) < (0.000375) ? 1.0 : 0.0)) ? v_ca_fast : (T((((l_setup_i / v_srate)) < (0.0024) ? 1.0 : 0.0)) ? std::exp((std::log(0.4) * (l_setup_ht / 0.016))) : std::exp((std::log(0.92) * (l_setup_ht / 0.016))))))));
     (void)((M((v_cal + l_setup_i)) = DF(M((v_cac + l_setup_i)))));
     (void)((l_setup_i = DF(l_setup_i + 1.0)));
   }
   (void)((v_cq0 = DF(std::floor((v_srate / 400.0)))));
-  (void)((v_cq1 = DF(([&]() -> double { double _t492 = (v_nb - 1.0); double _t493 = std::floor((v_srate / 70.0)); return _t492 > _t493 ? _t493 : _t492; }()))));
-  (void)((v_cpw = DF(([&]() -> double { double _t494 = 1.0; double _t495 = std::floor(((4.0 * (v_srate / 48000.0)) + 0.5)); return _t494 < _t495 ? _t495 : _t494; }()))));
+  (void)((v_cq1 = DF(([&]() -> double { double _t495 = (v_nb - 1.0); double _t496 = std::floor((v_srate / 70.0)); return _t495 > _t496 ? _t496 : _t495; }()))));
+  (void)((v_cpw = DF(([&]() -> double { double _t497 = 1.0; double _t498 = std::floor(((4.0 * (v_srate / 48000.0)) + 0.5)); return _t497 < _t498 ? _t498 : _t497; }()))));
   (void)((v_cnorm = DF((1.0 / v_nl))));
   (void)((v_cepi = DF(0.0)));
   (void)((v_zscale = DF((1.0 / std::log((v_zmax / v_zmin))))));
@@ -1842,8 +1849,8 @@ double AlfredCore::f_setup()
   (void)((v_a_rv = DF(std::exp(((-l_setup_ht) / 0.02)))));
   (void)((v_a_rise = DF(std::exp(((-l_setup_ht) / 0.04)))));
   (void)((v_a_pk = DF(std::exp(((-l_setup_ht) / 2.0)))));
-  (void)((v_nbw = DF(([&]() -> double { double _t496 = 2.0; double _t497 = std::floor(((280.0 * (v_nl / v_srate)) + 0.5)); return _t496 < _t497 ? _t497 : _t496; }()))));
-  (void)((v_jstep = DF(std::ceil((v_nb / ([&]() -> double { double _t498 = 1.0; double _t499 = (v_subv - 4.0); return _t498 < _t499 ? _t499 : _t498; }()))))));
+  (void)((v_nbw = DF(([&]() -> double { double _t499 = 2.0; double _t500 = std::floor(((280.0 * (v_nl / v_srate)) + 0.5)); return _t499 < _t500 ? _t500 : _t499; }()))));
+  (void)((v_jstep = DF(std::ceil((v_nb / ([&]() -> double { double _t501 = 1.0; double _t502 = (v_subv - 4.0); return _t501 < _t502 ? _t502 : _t501; }()))))));
   (void)((v_ajob = DF(v_nb)));
   (void)((v_pjob = DF(v_nb)));
   (void)((v_pos = DF(0.0)));
@@ -1886,7 +1893,6 @@ double AlfredCore::f_clear_audio()
   (void)(rt_memset(v_rvk, 0.0, (v_lk + 2.0)));
   (void)(rt_memset(v_rto, 0.0, (v_lk + 2.0)));
   (void)(rt_memset(v_rvs, 0.0, (v_lk + 2.0)));
-  (void)((v_vpost = DF(0.0)));
   (void)((v_vfall = DF(0.0)));
   (void)((v_vlev = DF(0.0)));
   (void)((v_vdist = DF(100000.0)));
@@ -1895,6 +1901,9 @@ double AlfredCore::f_clear_audio()
   (void)((v_vprev = DF(0.0)));
   (void)((v_vact = DF(0.0)));
   (void)((v_vsince = DF(100000.0)));
+  (void)(rt_memset(v_rvr, 0.0, v_nb));
+  (void)(rt_memset(v_rdh, 0.0, (v_nb * 4.0)));
+  (void)(rt_memset(v_psr, 0.0, v_nb));
   (void)((v_hopc = DF(0.0)));
   (void)((v_fsil = DF(0.0)));
   return (v_ons = DF(0.0));
@@ -1918,9 +1927,9 @@ double AlfredCore::f_update_params()
   (void)((v_bpt = DF((T(((v_slider4) >= (0.5) ? 1.0 : 0.0)) ? 1.0 : 0.0))));
   (void)((v_enh_amt = DF((v_slider17 * 0.01))));
   (void)((v_mode_fx = DF(((v_slider20) >= (0.5) ? 1.0 : 0.0))));
-  (void)((v_rvt = DF(([&]() -> double { double _t500 = 0.25; double _t501 = ([&]() -> double { double _t502 = 1.0; double _t503 = std::sqrt(std::fabs((T(((v_slider8) >= (0.5) ? 1.0 : 0.0)) ? 0.0 : f_db2g(([&]() -> double { double _t504 = v_slider3; double _t505 = 0.0; return _t504 > _t505 ? _t505 : _t504; }()))))); return _t502 > _t503 ? _t503 : _t502; }()); return _t500 < _t501 ? _t501 : _t500; }()))));
-  (void)((v_tr_glob = DF(([&]() -> double { double _t506 = 1.0; double _t507 = (v_slider21 * 0.02); return _t506 > _t507 ? _t507 : _t506; }()))));
-  (void)((v_tr_loc = DF(([&]() -> double { double _t508 = 0.0; double _t509 = ((v_slider21 * 0.02) - 1.0); return _t508 < _t509 ? _t509 : _t508; }()))));
+  (void)((v_rvt = DF(([&]() -> double { double _t503 = 0.25; double _t504 = ([&]() -> double { double _t505 = 1.0; double _t506 = std::sqrt(std::fabs((T(((v_slider8) >= (0.5) ? 1.0 : 0.0)) ? 0.0 : f_db2g(([&]() -> double { double _t507 = v_slider3; double _t508 = 0.0; return _t507 > _t508 ? _t508 : _t507; }()))))); return _t505 > _t506 ? _t506 : _t505; }()); return _t503 < _t504 ? _t504 : _t503; }()))));
+  (void)((v_tr_glob = DF(([&]() -> double { double _t509 = 1.0; double _t510 = (v_slider21 * 0.02); return _t509 > _t510 ? _t510 : _t509; }()))));
+  (void)((v_tr_loc = DF(([&]() -> double { double _t511 = 0.0; double _t512 = ((v_slider21 * 0.02) - 1.0); return _t511 < _t512 ? _t512 : _t511; }()))));
   (void)((v_tr_frac = DF((0.5 - (0.2 * v_tr_loc)))));
   (void)((l_update_params_key = DF(((((((v_slider10 + (v_slider11 * 29.0)) + (v_slider12 * 841.0)) + (v_slider13 * 24389.0)) + (v_slider14 * 707281.0)) + (v_slider15 * 20511149.0)) + (v_slider16 * 594823321.0)))));
   return (T(((T(NE(l_update_params_key, v_last_key)) || T(v_need_build)) ? 1.0 : 0.0)) ? ([&]() -> double {
@@ -1939,10 +1948,10 @@ double AlfredCore::f_serve_requests()
     if (T(EQ(v_pmode, 1.0))) {
       if (T(((v_lcount) >= (4.0) ? 1.0 : 0.0))) {
         (void)((l_serve_requests_k = DF(0.0)));
-        for (int _t510 = loopcount(v_nb); _t510 > 0; --_t510) {
+        for (int _t513 = loopcount(v_nb); _t513 > 0; --_t513) {
           (void)((M((v_prof + l_serve_requests_k)) = DF((M((v_lacc + l_serve_requests_k)) / v_lcount))));
           (void)((M((v_ptw + l_serve_requests_k)) = DF(0.0)));
-          (void)(([&]() -> double { double _t514 = (v_pst + l_serve_requests_k); double _t513 = f_steady_weight((M((v_lac1 + l_serve_requests_k)) / v_lcount), (M((v_lac2 + l_serve_requests_k)) / v_lcount), (0.8 - (1.5 / std::sqrt(std::fabs(v_lcount))))); return M(_t514) = DF(_t513); }()));
+          (void)(([&]() -> double { double _t517 = (v_pst + l_serve_requests_k); double _t516 = f_steady_weight((M((v_lac1 + l_serve_requests_k)) / v_lcount), (M((v_lac2 + l_serve_requests_k)) / v_lcount), (0.8 - (1.5 / std::sqrt(std::fabs(v_lcount))))); return M(_t517) = DF(_t516); }()));
           (void)((l_serve_requests_k = DF(l_serve_requests_k + 1.0)));
         }
         (void)((v_pst_ok = DF(((v_lcount) >= (30.0) ? 1.0 : 0.0))));
@@ -2001,10 +2010,10 @@ double AlfredCore::f_uarc(double cx_, double cy_, double r_, double a0_, double 
   l_uarc_a0 = a0_;
   l_uarc_a1 = a1_;
   l_uarc_th = th_;
-  (void)((l_uarc_n = DF(([&]() -> double { double _t515 = 1.0; double _t516 = std::floor((l_uarc_th * 2.0)); return _t515 < _t516 ? _t516 : _t515; }()))));
+  (void)((l_uarc_n = DF(([&]() -> double { double _t518 = 1.0; double _t519 = std::floor((l_uarc_th * 2.0)); return _t518 < _t519 ? _t519 : _t518; }()))));
   (void)((l_uarc_k = DF(0.0)));
   double _r = 0.0;
-  for (int _t517 = loopcount(l_uarc_n); _t517 > 0; --_t517) {
+  for (int _t520 = loopcount(l_uarc_n); _t520 > 0; --_t520) {
     (void)(g_arc(l_uarc_cx, l_uarc_cy, (l_uarc_r - (l_uarc_k * 0.5)), l_uarc_a0, l_uarc_a1, 1.0));
     _r = (l_uarc_k = DF(l_uarc_k + 1.0));
   }
@@ -2023,7 +2032,7 @@ double AlfredCore::f_urr(double x_, double y_, double w_, double h_, double r_, 
   (void)((l_urr_y = DF(std::floor(l_urr_y))));
   (void)((l_urr_w = DF(std::floor(l_urr_w))));
   (void)((l_urr_h = DF(std::floor(l_urr_h))));
-  (void)((l_urr_r = DF(std::floor(([&]() -> double { double _t518 = l_urr_r; double _t519 = (([&]() -> double { double _t520 = l_urr_w; double _t521 = l_urr_h; return _t520 > _t521 ? _t521 : _t520; }()) / 2.0); return _t518 > _t519 ? _t519 : _t518; }())))));
+  (void)((l_urr_r = DF(std::floor(([&]() -> double { double _t521 = l_urr_r; double _t522 = (([&]() -> double { double _t523 = l_urr_w; double _t524 = l_urr_h; return _t523 > _t524 ? _t524 : _t523; }()) / 2.0); return _t521 > _t522 ? _t522 : _t521; }())))));
   return (T(l_urr_fill) ? ([&]() -> double {
   (void)(g_rect((l_urr_x + l_urr_r), l_urr_y, (l_urr_w - (2.0 * l_urr_r)), l_urr_h, 1.0));
   (void)(g_rect(l_urr_x, (l_urr_y + l_urr_r), l_urr_w, (l_urr_h - (2.0 * l_urr_r)), 1.0));
@@ -2087,7 +2096,7 @@ double AlfredCore::f_uset(double id_, double v_)
 {
   l_uset_id = id_;
   l_uset_v = v_;
-  (void)((l_uset_v = DF(([&]() -> double { double _t522 = f_umin(l_uset_id); double _t523 = ([&]() -> double { double _t524 = f_umax(l_uset_id); double _t525 = l_uset_v; return _t524 > _t525 ? _t525 : _t524; }()); return _t522 < _t523 ? _t523 : _t522; }()))));
+  (void)((l_uset_v = DF(([&]() -> double { double _t525 = f_umin(l_uset_id); double _t526 = ([&]() -> double { double _t527 = f_umax(l_uset_id); double _t528 = l_uset_v; return _t527 > _t528 ? _t528 : _t527; }()); return _t525 < _t526 ? _t526 : _t525; }()))));
   if (T(EQ(l_uset_id, 1.0))) {
     (void)((v_slider1 = DF(l_uset_v)));
   } else {
@@ -2140,14 +2149,14 @@ double AlfredCore::f_upos(double id_)
 {
   l_upos_id = id_;
   (void)((l_upos_v = DF(f_uget(l_upos_id))));
-  return (T(((l_upos_id) >= (60.0) ? 1.0 : 0.0)) ? (l_upos_v / 100.0) : (T(((l_upos_id) >= (40.0) ? 1.0 : 0.0)) ? ((l_upos_v + 12.0) / 24.0) : (T(((l_upos_v) >= (0.0) ? 1.0 : 0.0)) ? (0.5 + (l_upos_v / 48.0)) : (0.5 - (0.5 * std::sqrt(std::fabs(([&]() -> double { double _t526 = 1.0; double _t527 = ((-l_upos_v) / 60.0); return _t526 > _t527 ? _t527 : _t526; }()))))))));
+  return (T(((l_upos_id) >= (60.0) ? 1.0 : 0.0)) ? (l_upos_v / 100.0) : (T(((l_upos_id) >= (40.0) ? 1.0 : 0.0)) ? ((l_upos_v + 12.0) / 24.0) : (T(((l_upos_v) >= (0.0) ? 1.0 : 0.0)) ? (0.5 + (l_upos_v / 48.0)) : (0.5 - (0.5 * std::sqrt(std::fabs(([&]() -> double { double _t529 = 1.0; double _t530 = ((-l_upos_v) / 60.0); return _t529 > _t530 ? _t530 : _t529; }()))))))));
 }
 
 double AlfredCore::f_uval(double id_, double t_)
 {
   l_uval_id = id_;
   l_uval_t = t_;
-  (void)((l_uval_t = DF(([&]() -> double { double _t528 = 0.0; double _t529 = ([&]() -> double { double _t530 = 1.0; double _t531 = l_uval_t; return _t530 > _t531 ? _t531 : _t530; }()); return _t528 < _t529 ? _t529 : _t528; }()))));
+  (void)((l_uval_t = DF(([&]() -> double { double _t531 = 0.0; double _t532 = ([&]() -> double { double _t533 = 1.0; double _t534 = l_uval_t; return _t533 > _t534 ? _t534 : _t533; }()); return _t531 < _t532 ? _t532 : _t531; }()))));
   return (T(((l_uval_id) >= (60.0) ? 1.0 : 0.0)) ? (l_uval_t * 100.0) : (T(((l_uval_id) >= (40.0) ? 1.0 : 0.0)) ? ((l_uval_t * 24.0) - 12.0) : (T(((l_uval_t) >= (0.5) ? 1.0 : 0.0)) ? ((l_uval_t - 0.5) * 48.0) : ([&]() -> double {
   (void)((l_uval_u = DF(((0.5 - l_uval_t) * 2.0))));
   return (((-60.0) * l_uval_u) * l_uval_u);
@@ -2172,7 +2181,7 @@ double AlfredCore::f_ufader(double id_, double cx_, double y_, double h_, double
   l_ufader_wide = wide_;
   (void)((l_ufader_t = DF(f_upos(l_ufader_id))));
   (void)((l_ufader_t0 = DF((T(((l_ufader_id) >= (60.0) ? 1.0 : 0.0)) ? 0.0 : 0.5))));
-  (void)((l_ufader_tw = DF(([&]() -> double { double _t532 = 2.0; double _t533 = std::floor(((T(l_ufader_wide) ? 4.0 : 3.0) * v_usc)); return _t532 < _t533 ? _t533 : _t532; }()))));
+  (void)((l_ufader_tw = DF(([&]() -> double { double _t535 = 2.0; double _t536 = std::floor(((T(l_ufader_wide) ? 4.0 : 3.0) * v_usc)); return _t535 < _t536 ? _t536 : _t535; }()))));
   (void)((l_ufader_hw = DF(std::floor(((T(l_ufader_wide) ? 30.0 : 20.0) * v_usc)))));
   (void)((l_ufader_hh = DF(std::floor(((T(l_ufader_wide) ? 12.0 : 9.0) * v_usc)))));
   (void)((l_ufader_hy = DF((l_ufader_y + (l_ufader_h * (1.0 - l_ufader_t))))));
@@ -2180,7 +2189,7 @@ double AlfredCore::f_ufader(double id_, double cx_, double y_, double h_, double
   (void)(f_ucol(v_uchair, 1.0));
   (void)(f_urr((l_ufader_cx - (l_ufader_tw / 2.0)), l_ufader_y, l_ufader_tw, l_ufader_h, (l_ufader_tw / 2.0), 1.0));
   (void)(f_ucol(l_ufader_c, l_ufader_al));
-  (void)(g_rect(std::floor((l_ufader_cx - (l_ufader_tw / 2.0))), std::floor(([&]() -> double { double _t534 = l_ufader_hy; double _t535 = l_ufader_zy; return _t534 > _t535 ? _t535 : _t534; }())), l_ufader_tw, ([&]() -> double { double _t536 = 1.0; double _t537 = std::floor(std::fabs((l_ufader_hy - l_ufader_zy))); return _t536 < _t537 ? _t537 : _t536; }()), 1.0));
+  (void)(g_rect(std::floor((l_ufader_cx - (l_ufader_tw / 2.0))), std::floor(([&]() -> double { double _t537 = l_ufader_hy; double _t538 = l_ufader_zy; return _t537 > _t538 ? _t538 : _t537; }())), l_ufader_tw, ([&]() -> double { double _t539 = 1.0; double _t540 = std::floor(std::fabs((l_ufader_hy - l_ufader_zy))); return _t539 < _t540 ? _t540 : _t539; }()), 1.0));
   (void)(f_ucol(v_ucdim, 1.0));
   (void)(g_rect(std::floor(((l_ufader_cx - (l_ufader_hw / 2.0)) - (3.0 * v_usc))), std::floor(l_ufader_zy), std::floor((3.0 * v_usc)), 1.0, 1.0));
   (void)(g_rect(std::floor((l_ufader_cx + (l_ufader_hw / 2.0))), std::floor(l_ufader_zy), std::floor((3.0 * v_usc)), 1.0, 1.0));
@@ -2221,7 +2230,7 @@ double AlfredCore::f_utab(double x_, double w_, double on_, double hot_, double 
   l_utab_str = str_;
   (void)((l_utab_bot = DF(std::floor((46.0 * v_usc)))));
   (void)((l_utab_r = DF(std::floor((6.0 * v_usc)))));
-  (void)((l_utab_b = DF(([&]() -> double { double _t538 = 1.0; double _t539 = std::floor((1.4 * v_usc)); return _t538 < _t539 ? _t539 : _t538; }()))));
+  (void)((l_utab_b = DF(([&]() -> double { double _t541 = 1.0; double _t542 = std::floor((1.4 * v_usc)); return _t541 < _t542 ? _t542 : _t541; }()))));
   if (T(l_utab_on)) {
     (void)((l_utab_ty = DF(std::floor((15.0 * v_usc)))));
     (void)(f_ucol(v_ucacto, 1.0));
@@ -2250,9 +2259,9 @@ double AlfredCore::f_ulogo(double rx_, double cy_)
   (void)((l_ulogo_y0 = DF(std::floor((l_ulogo_cy - (l_ulogo_h / 2.0))))));
   (void)((l_ulogo_r = DF(0.0)));
   double _r = 0.0;
-  for (int _t540 = loopcount(l_ulogo_h); _t540 > 0; --_t540) {
+  for (int _t543 = loopcount(l_ulogo_h); _t543 > 0; --_t543) {
     (void)((l_ulogo_c = DF(0.0)));
-    for (int _t541 = loopcount(l_ulogo_w); _t541 > 0; --_t541) {
+    for (int _t544 = loopcount(l_ulogo_w); _t544 > 0; --_t544) {
       (void)((l_ulogo_v = DF(M((l_ulogo_m + ((l_ulogo_r * l_ulogo_w) + l_ulogo_c))))));
       if (T(((l_ulogo_v) > (0.0) ? 1.0 : 0.0))) {
         (void)((v_gfx_a = DF((l_ulogo_v / 15.0))));
@@ -2274,7 +2283,7 @@ double AlfredCore::f_ubtn(double x_, double y_, double w_, double h_, double on_
   l_ubtn_on = on_;
   l_ubtn_hot = hot_;
   l_ubtn_str = str_;
-  (void)((l_ubtn_r = DF(([&]() -> double { double _t542 = 2.0; double _t543 = std::floor((3.0 * v_usc)); return _t542 < _t543 ? _t543 : _t542; }()))));
+  (void)((l_ubtn_r = DF(([&]() -> double { double _t545 = 2.0; double _t546 = std::floor((3.0 * v_usc)); return _t545 < _t546 ? _t546 : _t545; }()))));
   if (T(l_ubtn_on)) {
     (void)(f_ucol(v_ucact, 1.0));
     (void)(f_urr(l_ubtn_x, l_ubtn_y, l_ubtn_w, l_ubtn_h, l_ubtn_r, 1.0));
@@ -2312,10 +2321,10 @@ double AlfredCore::f_udval(double arr_, double b0_, double b1_)
     _r = ((M((l_udval_arr + l_udval_k)) * (1.0 - l_udval_frt)) + (M((l_udval_arr + (l_udval_k + 1.0))) * l_udval_frt));
   } else {
     (void)((l_udval_k = DF(std::floor(l_udval_b0))));
-    (void)((l_udval_k1 = DF(([&]() -> double { double _t544 = std::floor(l_udval_b1); double _t545 = (v_nb - 1.0); return _t544 > _t545 ? _t545 : _t544; }()))));
+    (void)((l_udval_k1 = DF(([&]() -> double { double _t547 = std::floor(l_udval_b1); double _t548 = (v_nb - 1.0); return _t547 > _t548 ? _t548 : _t547; }()))));
     (void)((l_udval_mx = DF(0.0)));
-    for (int _t546 = loopcount(([&]() -> double { double _t547 = 1.0; double _t548 = ((l_udval_k1 - l_udval_k) + 1.0); return _t547 < _t548 ? _t548 : _t547; }())); _t546 > 0; --_t546) {
-      (void)((l_udval_mx = DF(([&]() -> double { double _t549 = l_udval_mx; double _t550 = M((l_udval_arr + l_udval_k)); return _t549 < _t550 ? _t550 : _t549; }()))));
+    for (int _t549 = loopcount(([&]() -> double { double _t550 = 1.0; double _t551 = ((l_udval_k1 - l_udval_k) + 1.0); return _t550 < _t551 ? _t551 : _t550; }())); _t549 > 0; --_t549) {
+      (void)((l_udval_mx = DF(([&]() -> double { double _t552 = l_udval_mx; double _t553 = M((l_udval_arr + l_udval_k)); return _t552 < _t553 ? _t553 : _t552; }()))));
       (void)((l_udval_k = DF(l_udval_k + 1.0)));
     }
     _r = l_udval_mx;
@@ -2327,7 +2336,7 @@ double AlfredCore::f_uspecy(double p_)
 {
   l_uspecy_p = p_;
   (void)((l_uspecy_d = DF((10.0 * std::log10(((l_uspecy_p * v_unorm) + v_tiny))))));
-  return (v_usy + (([&]() -> double { double _t551 = 0.0; double _t552 = ([&]() -> double { double _t553 = 1.0; double _t554 = (((-20.0) - l_uspecy_d) / 80.0); return _t553 > _t554 ? _t554 : _t553; }()); return _t551 < _t552 ? _t552 : _t551; }()) * v_ush));
+  return (v_usy + (([&]() -> double { double _t554 = 0.0; double _t555 = ([&]() -> double { double _t556 = 1.0; double _t557 = (((-20.0) - l_uspecy_d) / 80.0); return _t556 > _t557 ? _t557 : _t556; }()); return _t554 < _t555 ? _t555 : _t554; }()) * v_ush));
 }
 
 double AlfredCore::f_ucurve(double arr_, double c_, double fill_, double scale_)
@@ -2336,19 +2345,19 @@ double AlfredCore::f_ucurve(double arr_, double c_, double fill_, double scale_)
   l_ucurve_c = c_;
   l_ucurve_fill = fill_;
   l_ucurve_scale = scale_;
-  (void)((l_ucurve_st = DF(([&]() -> double { double _t555 = 1.0; double _t556 = std::floor((v_usc + 0.5)); return _t555 < _t556 ? _t556 : _t555; }()))));
+  (void)((l_ucurve_st = DF(([&]() -> double { double _t558 = 1.0; double _t559 = std::floor((v_usc + 0.5)); return _t558 < _t559 ? _t559 : _t558; }()))));
   (void)((l_ucurve_n = DF(std::floor((v_usw / l_ucurve_st)))));
   (void)((l_ucurve_bot = DF((v_usy + v_ush))));
   (void)((l_ucurve_i = DF(0.0)));
   (void)((l_ucurve_b0 = DF(v_ufb0)));
   double _r = 0.0;
-  for (int _t557 = loopcount(l_ucurve_n); _t557 > 0; --_t557) {
+  for (int _t560 = loopcount(l_ucurve_n); _t560 > 0; --_t560) {
     (void)((l_ucurve_x = DF((v_usx + (l_ucurve_i * l_ucurve_st)))));
     (void)((l_ucurve_b1 = DF((v_ufb0 * std::exp((v_uflog * ((l_ucurve_i + 1.0) / l_ucurve_n)))))));
     (void)((l_ucurve_y = DF(f_uspecy((f_udval(l_ucurve_arr, l_ucurve_b0, l_ucurve_b1) * l_ucurve_scale)))));
     if (T(l_ucurve_fill)) {
       (void)(f_ucol(l_ucurve_c, 0.16));
-      (void)(g_rect(l_ucurve_x, l_ucurve_y, l_ucurve_st, ([&]() -> double { double _t558 = 0.0; double _t559 = (l_ucurve_bot - l_ucurve_y); return _t558 < _t559 ? _t559 : _t558; }()), 1.0));
+      (void)(g_rect(l_ucurve_x, l_ucurve_y, l_ucurve_st, ([&]() -> double { double _t561 = 0.0; double _t562 = (l_ucurve_bot - l_ucurve_y); return _t561 < _t562 ? _t562 : _t561; }()), 1.0));
     }
     if (T(((l_ucurve_i) > (0.0) ? 1.0 : 0.0))) {
       (void)(f_ucol(l_ucurve_c, 1.0));
@@ -2406,9 +2415,9 @@ void AlfredCore::sec_init()
   (void)((v_enb = DF(23.0)));
   (void)((v_pbias = DF(1.5)));
   (void)((v_rvmax = DF(0.97)));
-  (void)((v_rvpost = DF(0.9)));
-  (void)((v_rvin = DF(0.6)));
-  (void)((v_rvth = DF(0.35)));
+  (void)((v_rvq = DF(0.25)));
+  (void)((v_rvlr = DF(0.004)));
+  (void)((v_rvb0 = DF(0.02)));
   (void)(str_copy(80000.0, 90004.0));
   (void)(str_cat(80000.0, 90007.0));
   (void)(str_cat(80000.0, 90008.0));
@@ -2587,8 +2596,8 @@ void AlfredCore::sec_gfx()
   }
   (void)((v_uadv = DF(((v_slider9) >= (0.5) ? 1.0 : 0.0))));
   (void)((v_ufix = DF((T(v_uadv) ? 491.0 : 327.0))));
-  (void)((v_usc = DF(([&]() -> double { double _t566 = 0.5; double _t567 = ([&]() -> double { double _t568 = (v_gfx_w / 664.0); double _t569 = (v_gfx_h / (v_ufix + 110.0)); return _t568 > _t569 ? _t569 : _t568; }()); return _t566 < _t567 ? _t567 : _t566; }()))));
-  (void)((v_ushb = DF(([&]() -> double { double _t570 = 110.0; double _t571 = ((v_gfx_h / v_usc) - v_ufix); return _t570 < _t571 ? _t571 : _t570; }()))));
+  (void)((v_usc = DF(([&]() -> double { double _t569 = 0.5; double _t570 = ([&]() -> double { double _t571 = (v_gfx_w / 664.0); double _t572 = (v_gfx_h / (v_ufix + 110.0)); return _t571 > _t572 ? _t572 : _t571; }()); return _t569 < _t570 ? _t570 : _t569; }()))));
+  (void)((v_ushb = DF(([&]() -> double { double _t573 = 110.0; double _t574 = ((v_gfx_h / v_usc) - v_ufix); return _t573 < _t574 ? _t574 : _t573; }()))));
   (void)((v_uox = DF(std::floor((((v_gfx_w - (664.0 * v_usc)) / 2.0) - (8.0 * v_usc))))));
   (void)((v_ulb = DF(BAND(v_mouse_cap, 1.0))));
   (void)((v_upress = DF(((T(v_ulb) && T((T(v_ulbp) ? 0.0 : 1.0))) ? 1.0 : 0.0))));
@@ -2619,7 +2628,7 @@ void AlfredCore::sec_gfx()
   (void)(f_ucol((T(v_uon) ? v_ucacto : v_ucdim), 1.0));
   (void)(g_circle(v_upx, v_upy, v_upr, 0.0, 1.0));
   (void)(f_uarc(v_upx, v_upy, (5.0 * v_usc), 0.75, 5.53, (1.4 * v_usc)));
-  (void)(g_rect(std::floor((v_upx - (0.7 * v_usc))), std::floor((v_upy - (7.0 * v_usc))), ([&]() -> double { double _t572 = 1.0; double _t573 = std::floor((1.6 * v_usc)); return _t572 < _t573 ? _t573 : _t572; }()), std::floor((6.0 * v_usc)), 1.0));
+  (void)(g_rect(std::floor((v_upx - (0.7 * v_usc))), std::floor((v_upy - (7.0 * v_usc))), ([&]() -> double { double _t575 = 1.0; double _t576 = std::floor((1.6 * v_usc)); return _t575 < _t576 ? _t576 : _t575; }()), std::floor((6.0 * v_usc)), 1.0));
   (void)(g_setfont(1.0, -1.0, 0.0, 0.0));
   (void)(f_ucol(v_uctext, 1.0));
   (void)((v_gfx_x = DF((v_uox + (50.0 * v_usc)))));
@@ -2650,7 +2659,7 @@ void AlfredCore::sec_gfx()
   } else {
     (void)(f_uarc(v_utx, v_uty, (4.2 * v_usc), 0.0, 6.2832, (1.3 * v_usc)));
     (void)((v_uri = DF(0.0)));
-    for (int _t574 = loopcount(8.0); _t574 > 0; --_t574) {
+    for (int _t577 = loopcount(8.0); _t577 > 0; --_t577) {
       (void)((v_ura = DF((v_uri * 0.7854))));
       (void)(g_line((v_utx + ((std::sin(v_ura) * 6.4) * v_usc)), (v_uty - ((std::cos(v_ura) * 6.4) * v_usc)), (v_utx + ((std::sin(v_ura) * 9.0) * v_usc)), (v_uty - ((std::cos(v_ura) * 9.0) * v_usc)), 1.0));
       (void)((v_uri = DF(v_uri + 1.0)));
@@ -2674,7 +2683,7 @@ void AlfredCore::sec_gfx()
   (void)(f_ubtn(v_umx1, v_upy2, v_umw1, v_uph, (T(v_umfx) ? 0.0 : 1.0), EQ(v_uhov, 28.0), 90047.0));
   (void)(f_ubtn(v_umx2, v_upy2, v_umw2, v_uph, v_umfx, EQ(v_uhov, 29.0), 90048.0));
   (void)(f_ucol((T(((T(((T((T(v_umfx) ? 0.0 : 1.0)) && T(v_uon)) ? 1.0 : 0.0)) && T(((v_vv) > (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0)) ? v_ucacto : v_ucdim), 1.0));
-  (void)(g_circle((v_umx1 + std::floor((10.0 * v_usc))), (v_upy2 + std::floor((v_uph / 2.0))), ([&]() -> double { double _t575 = 2.0; double _t576 = (2.5 * v_usc); return _t575 < _t576 ? _t576 : _t575; }()), 1.0, 1.0));
+  (void)(g_circle((v_umx1 + std::floor((10.0 * v_usc))), (v_upy2 + std::floor((v_uph / 2.0))), ([&]() -> double { double _t578 = 2.0; double _t579 = (2.5 * v_usc); return _t578 < _t579 ? _t579 : _t578; }()), 1.0, 1.0));
   (void)(g_setfont(6.0, -1.0, 0.0, 0.0));
   (void)((v_uvx = DF(std::floor((v_uox + (208.0 * v_usc))))));
   (void)((v_uvw = DF(std::floor((70.0 * v_usc)))));
@@ -2696,9 +2705,9 @@ void AlfredCore::sec_gfx()
   (void)(g_rect(v_uox, std::floor((46.0 * v_usc)), std::floor((680.0 * v_usc)), 1.0, 1.0));
   (void)(f_ucol(v_ucbg, 1.0));
   if (T(v_uadv)) {
-    (void)(g_rect((v_uvx2 + ([&]() -> double { double _t577 = 1.0; double _t578 = std::floor((1.4 * v_usc)); return _t577 < _t578 ? _t578 : _t577; }())), std::floor((46.0 * v_usc)), (v_uvw2 - (2.0 * ([&]() -> double { double _t579 = 1.0; double _t580 = std::floor((1.4 * v_usc)); return _t579 < _t580 ? _t580 : _t579; }()))), 1.0, 1.0));
+    (void)(g_rect((v_uvx2 + ([&]() -> double { double _t580 = 1.0; double _t581 = std::floor((1.4 * v_usc)); return _t580 < _t581 ? _t581 : _t580; }())), std::floor((46.0 * v_usc)), (v_uvw2 - (2.0 * ([&]() -> double { double _t582 = 1.0; double _t583 = std::floor((1.4 * v_usc)); return _t582 < _t583 ? _t583 : _t582; }()))), 1.0, 1.0));
   } else {
-    (void)(g_rect((v_uvx + ([&]() -> double { double _t581 = 1.0; double _t582 = std::floor((1.4 * v_usc)); return _t581 < _t582 ? _t582 : _t581; }())), std::floor((46.0 * v_usc)), (v_uvw - (2.0 * ([&]() -> double { double _t583 = 1.0; double _t584 = std::floor((1.4 * v_usc)); return _t583 < _t584 ? _t584 : _t583; }()))), 1.0, 1.0));
+    (void)(g_rect((v_uvx + ([&]() -> double { double _t584 = 1.0; double _t585 = std::floor((1.4 * v_usc)); return _t584 < _t585 ? _t585 : _t584; }())), std::floor((46.0 * v_usc)), (v_uvw - (2.0 * ([&]() -> double { double _t586 = 1.0; double _t587 = std::floor((1.4 * v_usc)); return _t586 < _t587 ? _t587 : _t586; }()))), 1.0, 1.0));
   }
   (void)((v_usx = DF(std::floor((v_uox + (16.0 * v_usc))))));
   (void)((v_usy = DF(std::floor((56.0 * v_usc)))));
@@ -2708,26 +2717,26 @@ void AlfredCore::sec_gfx()
   (void)(g_rect(v_usx, v_usy, v_usw, v_ush, 1.0));
   (void)((v_unorm = DF((8.0 / (v_nl * v_nl)))));
   (void)((v_ufmin = DF(40.0)));
-  (void)((v_ufmax = DF(([&]() -> double { double _t585 = 20000.0; double _t586 = (v_srate * 0.5); return _t585 > _t586 ? _t586 : _t585; }()))));
+  (void)((v_ufmax = DF(([&]() -> double { double _t588 = 20000.0; double _t589 = (v_srate * 0.5); return _t588 > _t589 ? _t589 : _t588; }()))));
   (void)((v_uflog = DF(std::log((v_ufmax / v_ufmin)))));
   (void)((v_ufb0 = DF((v_ufmin * (v_nl / v_srate)))));
   if (T(((T(((T(v_uadv) && T(((v_uhovp) >= (50.0) ? 1.0 : 0.0))) ? 1.0 : 0.0)) && T(((v_uhovp) <= (54.0) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
     (void)((v_ub0 = DF((T(EQ(v_uhovp, 50.0)) ? v_ufmin : (T(EQ(v_uhovp, 51.0)) ? 120.0 : (T(EQ(v_uhovp, 52.0)) ? 500.0 : (T(EQ(v_uhovp, 53.0)) ? 2000.0 : 6000.0)))))));
     (void)((v_ub1 = DF((T(EQ(v_uhovp, 50.0)) ? 120.0 : (T(EQ(v_uhovp, 51.0)) ? 500.0 : (T(EQ(v_uhovp, 52.0)) ? 2000.0 : (T(EQ(v_uhovp, 53.0)) ? 6000.0 : v_ufmax)))))));
     (void)((v_ubx0 = DF(std::floor((v_usx + (v_usw * (std::log((v_ub0 / v_ufmin)) / v_uflog)))))));
-    (void)((v_ubx1 = DF(std::floor((v_usx + (v_usw * (std::log((([&]() -> double { double _t587 = v_ub1; double _t588 = v_ufmax; return _t587 > _t588 ? _t588 : _t587; }()) / v_ufmin)) / v_uflog)))))));
+    (void)((v_ubx1 = DF(std::floor((v_usx + (v_usw * (std::log((([&]() -> double { double _t590 = v_ub1; double _t591 = v_ufmax; return _t590 > _t591 ? _t591 : _t590; }()) / v_ufmin)) / v_uflog)))))));
     (void)(f_ucol(v_ucacto, 0.14));
     (void)(g_rect(v_ubx0, v_usy, (v_ubx1 - v_ubx0), v_ush, 1.0));
   }
   (void)(g_setfont(3.0, -1.0, 0.0, 0.0));
   (void)((v_ugy = DF(1.0)));
-  for (int _t589 = loopcount(3.0); _t589 > 0; --_t589) {
+  for (int _t592 = loopcount(3.0); _t592 > 0; --_t592) {
     (void)(f_ucol(v_ucline, 1.0));
     (void)(g_rect(v_usx, std::floor((v_usy + (v_ush * (v_ugy / 4.0)))), v_usw, 1.0, 1.0));
     (void)((v_ugy = DF(v_ugy + 1.0)));
   }
   (void)((v_ugn = DF(0.0)));
-  for (int _t590 = loopcount(8.0); _t590 > 0; --_t590) {
+  for (int _t593 = loopcount(8.0); _t593 > 0; --_t593) {
     (void)((v_ugf = DF((T(EQ(v_ugn, 0.0)) ? 50.0 : (T(EQ(v_ugn, 1.0)) ? 100.0 : (T(EQ(v_ugn, 2.0)) ? 200.0 : (T(EQ(v_ugn, 3.0)) ? 500.0 : (T(EQ(v_ugn, 4.0)) ? 1000.0 : (T(EQ(v_ugn, 5.0)) ? 2000.0 : (T(EQ(v_ugn, 6.0)) ? 5000.0 : 10000.0))))))))));
     (void)((v_ugx = DF(std::floor((v_usx + (v_usw * (std::log((v_ugf / v_ufmin)) / v_uflog)))))));
     if (T(((v_ugx) < ((v_usx + v_usw)) ? 1.0 : 0.0))) {
@@ -2761,11 +2770,11 @@ void AlfredCore::sec_gfx()
   if (T(((T(v_uadv) && T(((v_slider17) > (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
     (void)(f_ucol(v_ucsig, 0.9));
     (void)((v_uei = DF(0.0)));
-    (void)((v_uen = DF(std::floor((v_usw / ([&]() -> double { double _t591 = 2.0; double _t592 = std::floor((3.0 * v_usc)); return _t591 < _t592 ? _t592 : _t591; }()))))));
-    for (int _t593 = loopcount((v_uen + 1.0)); _t593 > 0; --_t593) {
+    (void)((v_uen = DF(std::floor((v_usw / ([&]() -> double { double _t594 = 2.0; double _t595 = std::floor((3.0 * v_usc)); return _t594 < _t595 ? _t595 : _t594; }()))))));
+    for (int _t596 = loopcount((v_uen + 1.0)); _t596 > 0; --_t596) {
       (void)((v_uek = DF(std::floor(((v_ufb0 * std::exp((v_uflog * (v_uei / v_uen)))) + 0.5)))));
       (void)((v_uex2 = DF((v_usx + (v_usw * (v_uei / v_uen))))));
-      (void)((v_uey2 = DF((v_usy + ((v_ush * 0.5) - (([&]() -> double { double _t594 = (-22.0); double _t595 = ([&]() -> double { double _t596 = 22.0; double _t597 = (((M((v_enhc + v_uek)) * v_slider17) * 0.01) + v_glev); return _t596 > _t597 ? _t597 : _t596; }()); return _t594 < _t595 ? _t595 : _t594; }()) * (v_ush / 48.0)))))));
+      (void)((v_uey2 = DF((v_usy + ((v_ush * 0.5) - (([&]() -> double { double _t597 = (-22.0); double _t598 = ([&]() -> double { double _t599 = 22.0; double _t600 = (((M((v_enhc + v_uek)) * v_slider17) * 0.01) + v_glev); return _t599 > _t600 ? _t600 : _t599; }()); return _t597 < _t598 ? _t598 : _t597; }()) * (v_ush / 48.0)))))));
       if (T(((v_uei) > (0.0) ? 1.0 : 0.0))) {
         (void)(g_line(v_uexp, v_ueyp, v_uex2, v_uey2, 1.0));
       }
@@ -2796,7 +2805,7 @@ void AlfredCore::sec_gfx()
     (void)((v_uhov = DF(31.0)));
   }
   (void)(f_ucol(v_ucstage, 1.0));
-  (void)(f_urr(v_uanx, v_uany, v_uanw, v_uanh, ([&]() -> double { double _t598 = 2.0; double _t599 = std::floor((3.0 * v_usc)); return _t598 < _t599 ? _t599 : _t598; }()), 1.0));
+  (void)(f_urr(v_uanx, v_uany, v_uanw, v_uanh, ([&]() -> double { double _t601 = 2.0; double _t602 = std::floor((3.0 * v_usc)); return _t601 < _t602 ? _t602 : _t601; }()), 1.0));
   (void)(f_ubtn(v_uanx, v_uany, v_uanw, v_uanh, v_uana, EQ(v_uhov, 31.0), 90061.0));
   (void)(g_setfont(3.0, -1.0, 0.0, 0.0));
   (void)((v_uyk = DF(((v_usy + v_ush) + std::floor((12.0 * v_usc))))));
@@ -2870,7 +2879,7 @@ void AlfredCore::sec_gfx()
     (void)(f_ucol(v_ucline, 1.0));
     (void)(g_rect(std::floor((v_uox + ((214.0 + (52.0 * 6.5)) * v_usc))), (v_uay + std::floor((10.0 * v_usc))), 1.0, (v_uah - std::floor((20.0 * v_usc))), 1.0));
     (void)((v_ufi = DF(0.0)));
-    for (int _t600 = loopcount(9.0); _t600 > 0; --_t600) {
+    for (int _t603 = loopcount(9.0); _t603 > 0; --_t603) {
       (void)((v_ufid = DF((T(EQ(v_ufi, 0.0)) ? 40.0 : (T(EQ(v_ufi, 1.0)) ? 41.0 : (T(EQ(v_ufi, 7.0)) ? 60.0 : (T(EQ(v_ufi, 8.0)) ? 61.0 : (48.0 + v_ufi))))))));
       (void)((v_ufx = DF(std::floor((v_uox + (((208.0 + (52.0 * v_ufi)) + (T(((v_ufi) >= (2.0) ? 1.0 : 0.0)) ? 6.0 : 0.0)) * v_usc))))));
       (void)((v_ufy = DF(std::floor((v_uay + (48.0 * v_usc))))));
@@ -2905,7 +2914,7 @@ void AlfredCore::sec_gfx()
     (void)((v_uyk = DF(((v_uay + v_uah) + std::floor((12.0 * v_usc))))));
   }
   (void)((v_ugi = DF(0.0)));
-  for (int _t601 = loopcount(3.0); _t601 > 0; --_t601) {
+  for (int _t604 = loopcount(3.0); _t604 > 0; --_t604) {
     (void)((v_ukx = DF(std::floor((v_uox + ((124.0 + (216.0 * v_ugi)) * v_usc))))));
     (void)((v_ukc = DF(f_upart(v_ugi))));
     (void)((v_ukm = DF((T(EQ(v_ugi, 0.0)) ? v_slider6 : (T(EQ(v_ugi, 1.0)) ? v_slider7 : v_slider8)))));
@@ -2937,9 +2946,9 @@ void AlfredCore::sec_gfx()
     }
     (void)((v_ulv = DF(((T(EQ(v_ugi, 0.0)) ? v_lvs : (T(EQ(v_ugi, 1.0)) ? v_lva : v_lvr)) * (8.0 / ((3.0 * v_nl) * v_nl))))));
     (void)((v_uld = DF((10.0 * std::log10((v_ulv + v_tiny))))));
-    (void)((v_ulf = DF(([&]() -> double { double _t602 = 0.0; double _t603 = ([&]() -> double { double _t604 = 1.0; double _t605 = ((v_uld + 72.0) / 72.0); return _t604 > _t605 ? _t605 : _t604; }()); return _t602 < _t603 ? _t603 : _t602; }()))));
-    (void)((M((v_uim + v_ugi)) = DF(([&]() -> double { double _t606 = v_ulf; double _t607 = (M((v_uim + v_ugi)) - 0.02); return _t606 < _t607 ? _t607 : _t606; }()))));
-    (void)((v_umw = DF(([&]() -> double { double _t609 = 3.0; double _t610 = std::floor((6.0 * v_usc)); return _t609 < _t610 ? _t610 : _t609; }()))));
+    (void)((v_ulf = DF(([&]() -> double { double _t605 = 0.0; double _t606 = ([&]() -> double { double _t607 = 1.0; double _t608 = ((v_uld + 72.0) / 72.0); return _t607 > _t608 ? _t608 : _t607; }()); return _t605 < _t606 ? _t606 : _t605; }()))));
+    (void)((M((v_uim + v_ugi)) = DF(([&]() -> double { double _t609 = v_ulf; double _t610 = (M((v_uim + v_ugi)) - 0.02); return _t609 < _t610 ? _t610 : _t609; }()))));
+    (void)((v_umw = DF(([&]() -> double { double _t612 = 3.0; double _t613 = std::floor((6.0 * v_usc)); return _t612 < _t613 ? _t613 : _t612; }()))));
     (void)((v_umx = DF(std::floor((v_ukx + (22.0 * v_usc))))));
     (void)(f_ucol(v_uchair, 1.0));
     (void)(g_rect(v_umx, v_uky, v_umw, v_ukh, 1.0));
@@ -3043,7 +3052,7 @@ void AlfredCore::sec_gfx()
   (void)((v_uisf = DF(((T(((T(((T(((T(((T(((T(((v_uhov) >= (1.0) ? 1.0 : 0.0)) && T(((v_uhov) <= (3.0) ? 1.0 : 0.0))) ? 1.0 : 0.0)) || T(EQ(v_uhov, 40.0))) ? 1.0 : 0.0)) || T(EQ(v_uhov, 41.0))) ? 1.0 : 0.0)) || T(((T(((v_uhov) >= (50.0) ? 1.0 : 0.0)) && T(((v_uhov) <= (54.0) ? 1.0 : 0.0))) ? 1.0 : 0.0))) ? 1.0 : 0.0)) || T(EQ(v_uhov, 60.0))) ? 1.0 : 0.0)) || T(EQ(v_uhov, 61.0))) ? 1.0 : 0.0))));
   if (T(v_uedit)) {
     (void)((v_uch = DF(g_getchar())));
-    for (int _t611 = 1048576; _t611 > 0 && T(((v_uch) > (0.0) ? 1.0 : 0.0)); --_t611) {
+    for (int _t614 = 1048576; _t614 > 0 && T(((v_uch) > (0.0) ? 1.0 : 0.0)); --_t614) {
       if (T(EQ(v_uch, 13.0))) {
         if (T(str_match(90089.0, 80004.0, {&v_utyped}))) {
           (void)(f_uset(v_uedit, v_utyped));
@@ -3081,7 +3090,7 @@ void AlfredCore::sec_gfx()
     if (T(v_uisf)) {
       (void)((v_unow = DF(rt_time_precise())));
       if (T(((T(BAND(v_mouse_cap, 4.0)) || T(((T(EQ(v_uhov, v_ulast)) && T((((v_unow - v_ulastt)) < (0.3) ? 1.0 : 0.0))) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
-        (void)(([&]() -> double { double _t612 = v_uhov; double _t613 = f_udef(v_uhov); return f_uset(_t612, _t613); }()));
+        (void)(([&]() -> double { double _t615 = v_uhov; double _t616 = f_udef(v_uhov); return f_uset(_t615, _t616); }()));
         (void)(rt_slider_automate(f_umask(v_uhov), 1.0));
         (void)((v_udrag = DF(0.0)));
       } else {
@@ -3208,10 +3217,10 @@ void AlfredCore::sec_gfx()
   }
   if (T(((T(v_ulb) && T(v_udrag)) ? 1.0 : 0.0))) {
     if (T(NE(v_mouse_y, v_udy))) {
-      (void)((v_udacc = DF(v_udacc + (((v_udy - v_mouse_y) / ([&]() -> double { double _t614 = 1.0; double _t615 = v_udh; return _t614 < _t615 ? _t615 : _t614; }())) * (T(BAND(v_mouse_cap, 8.0)) ? 0.2 : 1.0)))));
-      (void)((v_udacc = DF(([&]() -> double { double _t616 = 0.0; double _t617 = ([&]() -> double { double _t618 = 1.0; double _t619 = v_udacc; return _t618 > _t619 ? _t619 : _t618; }()); return _t616 < _t617 ? _t617 : _t616; }()))));
+      (void)((v_udacc = DF(v_udacc + (((v_udy - v_mouse_y) / ([&]() -> double { double _t617 = 1.0; double _t618 = v_udh; return _t617 < _t618 ? _t618 : _t617; }())) * (T(BAND(v_mouse_cap, 8.0)) ? 0.2 : 1.0)))));
+      (void)((v_udacc = DF(([&]() -> double { double _t619 = 0.0; double _t620 = ([&]() -> double { double _t621 = 1.0; double _t622 = v_udacc; return _t621 > _t622 ? _t622 : _t621; }()); return _t619 < _t620 ? _t620 : _t619; }()))));
       (void)((v_udy = DF(v_mouse_y)));
-      (void)(([&]() -> double { double _t620 = v_udrag; double _t621 = (std::floor(((f_uval(v_udrag, v_udacc) * 10.0) + 0.5)) / 10.0); return f_uset(_t620, _t621); }()));
+      (void)(([&]() -> double { double _t623 = v_udrag; double _t624 = (std::floor(((f_uval(v_udrag, v_udacc) * 10.0) + 0.5)) / 10.0); return f_uset(_t623, _t624); }()));
     }
     (void)((v_uhov = DF(v_udrag)));
   }
@@ -3221,7 +3230,7 @@ void AlfredCore::sec_gfx()
   }
   if (T(NE(v_mouse_wheel, 0.0))) {
     if (T(v_uisf)) {
-      (void)(([&]() -> double { double _t624 = v_uhov; double _t625 = (std::floor(((([&]() -> double { double _t622 = v_uhov; double _t623 = (f_upos(v_uhov) + ((T(((v_mouse_wheel) > (0.0) ? 1.0 : 0.0)) ? 1.0 : (-1.0)) * (T(BAND(v_mouse_cap, 8.0)) ? 0.002 : 0.01))); return f_uval(_t622, _t623); }()) * 10.0) + 0.5)) / 10.0); return f_uset(_t624, _t625); }()));
+      (void)(([&]() -> double { double _t627 = v_uhov; double _t628 = (std::floor(((([&]() -> double { double _t625 = v_uhov; double _t626 = (f_upos(v_uhov) + ((T(((v_mouse_wheel) > (0.0) ? 1.0 : 0.0)) ? 1.0 : (-1.0)) * (T(BAND(v_mouse_cap, 8.0)) ? 0.002 : 0.01))); return f_uval(_t625, _t626); }()) * 10.0) + 0.5)) / 10.0); return f_uset(_t627, _t628); }()));
       (void)(rt_slider_automate(f_umask(v_uhov), 1.0));
     }
     (void)((v_mouse_wheel = DF(0.0)));
