@@ -1,13 +1,13 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.34 beta
+//version: 0.35 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
 
 slider1:0<-60,24,0.1>-Signal (dB)
-slider2:-21<-60,24,0.1>-Noise (dB)
+slider2:0<-60,24,0.1>-Noise (dB)
 slider3:0<-60,24,0.1>-Reverb (dB)
 slider4:1<0,1,1{Off,On}>-Power
 slider5:0<0,7,1{None,Signal,Noise,Signal+Noise,Reverb,Signal+Reverb,Noise+Reverb,All}>-Solo
@@ -39,7 +39,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.34 beta";
+#verstr = "0.35 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -517,6 +517,9 @@ function frame() local(i, j, k, m, p, w, re, im, pw, sm, c, na, xi, q, v, gh, g,
     // everything that is not voice is noise in dialogue mode; inside the voice the spectral cut is gentler
     // (a bin the noise estimate holds a steady tone in - hum, a whine - is taken out in full under the voice too)
     sv = vg*(1 - (1-gsv)*(ind ? 1 : max(indc[k], atw[k])));
+    // the plug-in's neural engine has already taken the voice out of the noise: what arrives here is all voice,
+    // so nothing of it is treated as noise a second time
+    nvo ? sv = 1;
     rh = t[k];
     mv = sv*sqrt(1-rh);
     mr = sv - mv;
@@ -797,6 +800,7 @@ file_avail(0) >= 0 ? ( pmode = (ser_n == NL && ser_mode == 2) ? 2 : 0; need_buil
 @block
 // the analyzer averages its spectra only while it is switched on (saves work when it is off)
 ana = slider22 >= 0.5 && slider23 >= 0.5;
+nvo = ext_voice >= 0.5 && slider20 < 0.5;
 srate != last_srate ? setup();
 serve_requests();
 update_params();
@@ -1314,7 +1318,7 @@ upress ? (
   ) : uhov == 24 ? (
     slider9 = 1; slider_automate(256); slider_automate(256, 1);
   ) : uhov == 26 ? (
-    slider1 = 0; slider2 = -21; slider3 = 0; slider5 = 0; slider6 = 0; slider7 = 0; slider8 = 0;
+    slider1 = 0; slider2 = 0; slider3 = 0; slider5 = 0; slider6 = 0; slider7 = 0; slider8 = 0;
     slider10 = 0; slider11 = 0; slider12 = 0; slider13 = 0; slider14 = 0; slider15 = 0; slider16 = 0; slider17 = 0; slider19 = 0; slider21 = 50;
     slider_automate(1441527); slider_automate(1441527, 1);
   ) : uhov == 27 ? (

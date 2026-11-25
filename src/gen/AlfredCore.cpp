@@ -5,7 +5,7 @@
 
 static const JsfxSliderInfo kSliders[] = {
   { 1, 0.0, -60.0, 24.0, 0.1, "Signal (dB)", nullptr, true },
-  { 2, -21.0, -60.0, 24.0, 0.1, "Noise (dB)", nullptr, true },
+  { 2, 0.0, -60.0, 24.0, 0.1, "Noise (dB)", nullptr, true },
   { 3, 0.0, -60.0, 24.0, 0.1, "Reverb (dB)", nullptr, true },
   { 4, 1.0, 0.0, 1.0, 1.0, "Power", "Off|On", true },
   { 5, 0.0, 0.0, 7.0, 1.0, "Solo", "None|Signal|Noise|Signal+Noise|Reverb|Signal+Reverb|Noise+Reverb|All", true },
@@ -42,7 +42,7 @@ AlfredCore::AlfredCore()
   str_define(90003, "+");
   str_define(90004, "");
   str_define(90005, "%s%.1f dB");
-  str_define(90006, "0.34 beta");
+  str_define(90006, "0.35 beta");
   str_define(90007, "0000007ffffeefffffdfd810");
   str_define(90008, "0000008ffff84ffffc1fffe3");
   str_define(90009, "0000008ffff84ffffb0ffffc");
@@ -180,7 +180,7 @@ AlfredCore::AlfredCore()
   str_define(80004, "");
   str_define(80005, "");
   v_slider1 = 0.0;
-  v_slider2 = -21.0;
+  v_slider2 = 0.0;
   v_slider3 = 0.0;
   v_slider4 = 1.0;
   v_slider5 = 0.0;
@@ -276,6 +276,7 @@ double* AlfredCore::var(const char* n)
   if (!std::strcmp(n, "ewid")) return &v_ewid;
   if (!std::strcmp(n, "ext_neural")) return &v_ext_neural;
   if (!std::strcmp(n, "ext_noinit")) return &v_ext_noinit;
+  if (!std::strcmp(n, "ext_voice")) return &v_ext_voice;
   if (!std::strcmp(n, "fcount")) return &v_fcount;
   if (!std::strcmp(n, "fl")) return &v_fl;
   if (!std::strcmp(n, "fr")) return &v_fr;
@@ -346,6 +347,7 @@ double* AlfredCore::var(const char* n)
   if (!std::strcmp(n, "nbw")) return &v_nbw;
   if (!std::strcmp(n, "need_build")) return &v_need_build;
   if (!std::strcmp(n, "nl")) return &v_nl;
+  if (!std::strcmp(n, "nvo")) return &v_nvo;
   if (!std::strcmp(n, "onk")) return &v_onk;
   if (!std::strcmp(n, "onorm")) return &v_onorm;
   if (!std::strcmp(n, "ons")) return &v_ons;
@@ -1521,6 +1523,9 @@ double AlfredCore::f_frame()
     (void)((l_frame_gsv = DF(M((l_frame_hb + l_frame_k)))));
     (void)((l_frame_pw = DF(M((l_frame_q + l_frame_k)))));
     (void)((l_frame_sv = DF((l_frame_vg * (1.0 - ((1.0 - l_frame_gsv) * (T(l_frame_ind) ? 1.0 : ([&]() -> double { double _t374 = M((v_indc + l_frame_k)); double _t375 = M((v_atw + l_frame_k)); return _t374 < _t375 ? _t375 : _t374; }()))))))));
+    if (T(v_nvo)) {
+      (void)((l_frame_sv = DF(1.0)));
+    }
     (void)((l_frame_rh = DF(M((l_frame_t + l_frame_k)))));
     (void)((l_frame_mv = DF((l_frame_sv * std::sqrt(std::fabs((1.0 - l_frame_rh)))))));
     (void)((l_frame_mr = DF((l_frame_sv - l_frame_mv))));
@@ -2562,6 +2567,7 @@ void AlfredCore::sec_serialize()
 void AlfredCore::sec_block()
 {
   (void)((v_ana = DF(((T(((v_slider22) >= (0.5) ? 1.0 : 0.0)) && T(((v_slider23) >= (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0))));
+  (void)((v_nvo = DF(((T(((v_ext_voice) >= (0.5) ? 1.0 : 0.0)) && T(((v_slider20) < (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0))));
   if (T(NE(v_srate, v_last_srate))) {
     (void)(f_setup());
   }
@@ -3240,7 +3246,7 @@ void AlfredCore::sec_gfx()
                     } else {
                       if (T(EQ(v_uhov, 26.0))) {
                         (void)((v_slider1 = DF(0.0)));
-                        (void)((v_slider2 = DF((-21.0))));
+                        (void)((v_slider2 = DF(0.0)));
                         (void)((v_slider3 = DF(0.0)));
                         (void)((v_slider5 = DF(0.0)));
                         (void)((v_slider6 = DF(0.0)));

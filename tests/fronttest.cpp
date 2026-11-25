@@ -48,9 +48,11 @@ int main(int argc, char** argv)
             const int m = n - p < want_bs ? n - p : want_bs;
             if (double* v = fx.var("samplesblock")) *v = m;
             if (double* v = fx.var("ext_neural")) *v = 1;
-            fx.sec_block();
+            // as the plug-in does it: the classic engine is told whether the neural engine delivers the voice
             const bool power = *fx.var("slider4") >= 0.5;
             const bool want = power && *fx.var("slider20") < 0.5 && *fx.var("slider24") >= 0.5;
+            if (double* v = fx.var("ext_voice")) *v = want ? 1 : 0;
+            fx.sec_block();
             double hi, lo; VoiceFront::levels(*fx.var("ga"), (int)(*fx.var("slider19") + 0.5), power, hi, lo);
             const float* ip[2] = { x.data() + p, x.data() + p }; double* cp[2] = { core.data(), core.data() };
             front.pre(ip, cp, m, want);

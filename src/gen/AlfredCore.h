@@ -85,6 +85,7 @@ public:
   double v_ewid = 0.0;
   double v_ext_neural = 0.0;
   double v_ext_noinit = 0.0;
+  double v_ext_voice = 0.0;
   double v_fcount = 0.0;
   double v_fl = 0.0;
   double v_fr = 0.0;
@@ -155,6 +156,7 @@ public:
   double v_nbw = 0.0;
   double v_need_build = 0.0;
   double v_nl = 0.0;
+  double v_nvo = 0.0;
   double v_onk = 0.0;
   double v_onorm = 0.0;
   double v_ons = 0.0;

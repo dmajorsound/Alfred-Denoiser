@@ -44,11 +44,15 @@ AlfredProcessor::AlfredProcessor()
     }
     bypassParam = new juce::AudioParameterBool(juce::ParameterID { "bypass", 1 }, "Bypass", false);
     addParameter(bypassParam);
+    for (int i = 0; i < numSliders; ++i)
+        if (sliders[i].index == 4) powerParam = params[(size_t)i];
+    if (powerParam) powerParam->addListener(&powerListener);
+    bypassParam->addListener(&bypassListener);
 
     vSrate = core.var("srate"); vBlock = core.var("samplesblock"); vPlay = core.var("play_state");
     vPdc = core.var("pdc_delay"); vSpl0 = core.var("spl0"); vSpl1 = core.var("spl1"); vPower = core.var("slider4");
     vGa = core.var("ga"); vDelta = core.var("slider19"); vMode = core.var("slider20"); vEngine = core.var("slider24");
-    vExtNeural = core.var("ext_neural");
+    vExtNeural = core.var("ext_neural"); vExtVoice = core.var("ext_voice");
     if (vExtNeural) *vExtNeural = 2.0;      // the interface shows the engine switch; "not available" until it is loaded
 
     // @init at a default rate; the real rate arrives with prepareToPlay (the script follows srate in @block)
@@ -64,6 +68,8 @@ AlfredProcessor::AlfredProcessor()
 
 AlfredProcessor::~AlfredProcessor()
 {
+    if (powerParam) powerParam->removeListener(&powerListener);
+    if (bypassParam) bypassParam->removeListener(&bypassListener);
     cancelPendingUpdate();
     core.sliderListener = nullptr;
 }
@@ -179,6 +185,23 @@ void AlfredProcessor::handleAsyncUpdate()
 {
     const int lat = pendingLatency.exchange(-1);
     if (lat >= 0 && lat != getLatencySamples()) setLatencySamples(lat);
+
+    // power button <-> host bypass
+    const int link = pendingLink.exchange(0);
+    if (link != 0 && powerParam != nullptr)
+    {
+        linking.store(true);
+        const bool powerOn = powerParam->getValue() >= 0.5f, bypassOn = bypassParam->get();
+        if (link == 1 && bypassOn == powerOn)          // the power button moved: the host's bypass follows
+        {
+            bypassParam->beginChangeGesture(); bypassParam->setValueNotifyingHost(powerOn ? 0.0f : 1.0f); bypassParam->endChangeGesture();
+        }
+        else if (link == 2 && bypassOn == powerOn)     // the host's bypass moved: the power button follows
+        {
+            powerParam->beginChangeGesture(); powerParam->setValueNotifyingHost(bypassOn ? 0.0f : 1.0f); powerParam->endChangeGesture();
+        }
+        linking.store(false);
+    }
 }
 
 // ------------------------------------------------------------------------------------------- audio
@@ -192,7 +215,7 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
 
     // the host's bypass (and the bypass parameter) runs the plug-in with its power off: the input comes out
     // delayed by the latency, so switching causes no jump in timing
-    const bool hostBypass = bypassed || bypassParam->get();
+    const bool hostBypass = bypassed;      // (the bypass parameter itself is linked to the power button)
     const double powerSave = *vPower;
     if (hostBypass) *vPower = 0.0;
 
@@ -210,6 +233,10 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
     }
     const bool neuralUsable = neural != nullptr && std::abs(*vSrate - 48000.0) < 1.0;
     if (vExtNeural) *vExtNeural = neuralUsable ? 1.0 : 2.0;
+    // when the neural engine delivers the voice, the classic engine must not look for noise in it a second time
+    const bool neuralOn = neural != nullptr && front != nullptr && neuralUsable && *vPower >= 0.5
+                          && (vMode == nullptr || *vMode < 0.5) && (vEngine == nullptr || *vEngine >= 0.5);
+    if (vExtVoice) *vExtVoice = neuralOn ? 1.0 : 0.0;
     core.sec_block();
 
     T* l = buffer.getWritePointer(0);
@@ -229,7 +256,7 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
     {
         // ---- with the neural voice engine in front: the network's voice goes through the classic engine, and what
         // the network took away comes back at the level of the Noise fader
-        const bool want = neuralUsable && *vPower >= 0.5 && (vMode == nullptr || *vMode < 0.5) && (vEngine == nullptr || *vEngine >= 0.5);
+        const bool want = neuralOn;
         double levelHi, levelLo;
         VoiceFront::levels(vGa ? *vGa : 1.0, vDelta ? (int)(*vDelta + 0.5) : 0, *vPower >= 0.5, levelHi, levelLo);
         const int cap = front->capacity();

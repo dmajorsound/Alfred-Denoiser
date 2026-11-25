@@ -66,6 +66,18 @@ private:
     std::vector<float> lastParam;
     std::vector<char> inGesture;
     juce::AudioParameterBool* bypassParam = nullptr;
+    // The power button and the host's bypass are one switch: whichever is changed, the other follows.
+    struct LinkListener : juce::AudioProcessorParameter::Listener
+    {
+        LinkListener(AlfredProcessor& p, int w) : owner(p), which(w) {}
+        void parameterValueChanged(int, float) override { if (!owner.linking.load()) { owner.pendingLink.store(which); owner.triggerAsyncUpdate(); } }
+        void parameterGestureChanged(int, bool) override {}
+        AlfredProcessor& owner; int which;
+    };
+    LinkListener powerListener { *this, 1 }, bypassListener { *this, 2 };
+    juce::RangedAudioParameter* powerParam = nullptr;
+    std::atomic<int> pendingLink { 0 };
+    std::atomic<bool> linking { false };
     double* vSrate = nullptr; double* vBlock = nullptr; double* vPlay = nullptr; double* vPdc = nullptr;
     double* vSpl0 = nullptr; double* vSpl1 = nullptr; double* vPower = nullptr;
     // ---- neural voice engine (48 kHz, Voice mode). It splits the input into the voice and the rest; the voice
@@ -76,6 +88,7 @@ private:
     std::unique_ptr<NeuralVoice> neural;
     bool neuralTried = false;
     bool wasPlaying = false;
+    double* vExtVoice = nullptr;
     double* vGa = nullptr; double* vDelta = nullptr; double* vMode = nullptr; double* vEngine = nullptr; double* vExtNeural = nullptr;
     std::unique_ptr<VoiceFront> front;
     std::vector<float> nIn[2];

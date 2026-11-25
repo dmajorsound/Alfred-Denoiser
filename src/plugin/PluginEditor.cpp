@@ -14,7 +14,7 @@ AlfredEditor::AlfredEditor(AlfredProcessor& p) : AudioProcessorEditor(&p), proc(
     setResizeLimits(400, 200, 2400, 2400);
     wantKey = proc.core.var("uwantk"); wantH = proc.core.var("uwanth");
     setSize(AlfredCore::gfxWidth(), AlfredCore::gfxHeight());
-    startTimerHz(30);
+    startTimerHz(60);
 }
 
 AlfredEditor::~AlfredEditor()
@@ -43,7 +43,7 @@ void AlfredEditor::updateMouse(const juce::MouseEvent& e, bool)
 }
 
 void AlfredEditor::mouseMove(const juce::MouseEvent& e) { updateMouse(e, false); }
-void AlfredEditor::mouseDrag(const juce::MouseEvent& e) { updateMouse(e, true); }
+void AlfredEditor::mouseDrag(const juce::MouseEvent& e) { updateMouse(e, true); timerCallback(); }   // a drag is drawn at once
 void AlfredEditor::mouseExit(const juce::MouseEvent& e) { updateMouse(e, false); }
 
 void AlfredEditor::mouseDown(const juce::MouseEvent& e)
@@ -155,6 +155,8 @@ void AlfredEditor::paint(juce::Graphics& g)
 {
     const float s = g.getInternalContext().getPhysicalPixelScaleFactor();
     if (s > 0.5f && std::abs(s - lastScale) > 0.01f) lastScale = s;
+    // the image has exactly the screen's pixels: no filtering needed when it is drawn
+    g.setImageResamplingQuality(juce::Graphics::lowResamplingQuality);
     if (shown.isValid()) g.drawImage(shown, getLocalBounds().toFloat());
     else g.fillAll(juce::Colours::black);
 }
