@@ -16,9 +16,9 @@ on:
         default: ""
 
 env:
-  VERSION: "0.37 beta"        # shown in the installers
-  FILEVER: "0.37_beta"        # used in the file names
-  PKGVER: "0.37.0"
+  VERSION: "0.38 beta"        # shown in the installers
+  FILEVER: "0.38_beta"        # used in the file names
+  PKGVER: "0.38.0"
   ORTVER: "1.22.0"            # ONNX Runtime (taken from its official Python package) that runs the neural voice engine            # numeric version for the macOS package receipts
 
 jobs:
@@ -94,6 +94,18 @@ jobs:
           pkgbuild --root enhance/sidon --install-location "/Library/Application Support/dmajorsound/Alfred" \
             --identifier com.dmajorsound.alfred.sidon --version "$PKGVER" alfred-sidon.pkg
           mkdir -p ui
+          # the license page of the installer: the Restore model's license, word for word
+          python3 - <<'PY'
+          import html
+          text = open('enhance/restore/restore-LICENSE-OpenRAIL.txt', encoding='utf-8').read()
+          page = ('<html><head><meta charset="utf-8"></head><body style="font-family:-apple-system,Helvetica,sans-serif;font-size:12px">'
+                  '<p><b>License of the optional Enhance model "Restore"</b></p>'
+                  '<p>This license covers the Restore model and the audio made with it, not Alfred itself. '
+                  'Your agreement counts only if you install the model. If you do not want these terms, '
+                  'switch off "Enhance model: Restore" on the Customize page that follows.</p><hr>'
+                  '<pre style="white-space:pre-wrap;font-family:Menlo,monospace;font-size:11px">' + html.escape(text) + '</pre></body></html>')
+          open('ui/license.html', 'w', encoding='utf-8').write(page)
+          PY
           cp installer/mac_ui/welcome.html installer/mac_ui/logo.png installer/mac_ui/logo-dark.png ui/
           tiffutil -cathidpicheck installer/mac_ui/background.png installer/mac_ui/background@2x.png -out ui/background.tiff
           tiffutil -cathidpicheck installer/mac_ui/background-darkAqua.png installer/mac_ui/background-darkAqua@2x.png -out ui/background-darkAqua.tiff

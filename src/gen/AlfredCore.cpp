@@ -43,7 +43,7 @@ AlfredCore::AlfredCore()
   str_define(90003, "+");
   str_define(90004, "");
   str_define(90005, "%s%.1f dB");
-  str_define(90006, "0.37 beta");
+  str_define(90006, "0.38 beta");
   str_define(90007, "0000007ffffeefffffdfd810");
   str_define(90008, "0000008ffff84ffffc1fffe3");
   str_define(90009, "0000008ffff84ffffb0ffffc");

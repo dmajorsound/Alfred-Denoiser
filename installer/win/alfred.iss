@@ -1,9 +1,9 @@
 ; Alfred installer for Windows (Inno Setup 6). The version comes from the build: ISCC /DAppVer=0.27 /DFileVer=0.27_beta
 #ifndef AppVer
-  #define AppVer "0.37 beta"
+  #define AppVer "0.38 beta"
 #endif
 #ifndef FileVer
-  #define FileVer "0.37_beta"
+  #define FileVer "0.38_beta"
 #endif
 
 [Setup]
@@ -38,7 +38,7 @@ Name: "custom"; Description: "Choose what to install"; Flags: iscustom
 Name: "vst3"; Description: "VST3 (REAPER and most other hosts)"; Types: full custom
 Name: "clap"; Description: "CLAP (REAPER, Bitwig Studio and other hosts that support CLAP)"; Types: full custom
 Name: "neural"; Description: "Neural voice engine files (shared by both formats; without them Alfred uses its classic engine only)"; Types: full custom
-Name: "restore"; Description: "Enhance model Restore: studio voice, worked out when you render (36 MB, needs the neural files). OpenRAIL license: no unlawful, harmful, harassing or discriminating use"; Types: full custom
+Name: "restore"; Description: "Enhance model Restore: studio voice, worked out when you render (36 MB, needs the neural files). OpenRAIL license, shown on the next page"; Types: full custom
 Name: "sidon"; Description: "Enhance model Sidon: builds the voice anew, worked out when you render, slow (300 MB, needs the neural files). MIT License"; Types: full custom
 
 [Files]
@@ -47,8 +47,65 @@ Source: "..\..\build\Alfred_artefacts\Release\CLAP\Alfred.clap"; DestDir: "{comm
 ; neural voice engine: ONNX Runtime and the model, shared by both plug-in formats
 Source: "..\..\support\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; Components: neural; Flags: ignoreversion
 Source: "..\..\enhance\restore\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; Components: restore; Flags: ignoreversion
+; shown on the license page that appears when Restore is selected
+Source: "..\..\enhance\restore\restore-LICENSE-OpenRAIL.txt"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "..\..\enhance\sidon\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; Components: sidon; Flags: ignoreversion
 
 [Messages]
 WelcomeLabel1=Alfred%nA simple Denoiser at your Service
 WelcomeLabel2=This installs Alfred as VST3 and CLAP plug-in into the common plug-in folders. On the next page you can choose which of them you want.%n%nAfterwards, rescan your plug-ins in REAPER.
+
+; ---- a license page for the Restore model: shown only when that component is selected, and it must be accepted
+[Code]
+var
+  RailPage: TWizardPage;
+  RailMemo: TNewMemo;
+  RailCheck: TNewCheckBox;
+
+procedure InitializeWizard;
+var
+  Raw: AnsiString;
+  Txt: String;
+begin
+  RailPage := CreateCustomPage(wpSelectComponents, 'License of the Enhance model Restore',
+    'It covers the model and the audio made with it. Accept it to install Restore.');
+  RailMemo := TNewMemo.Create(RailPage);
+  RailMemo.Parent := RailPage.Surface;
+  RailMemo.Left := 0;
+  RailMemo.Top := 0;
+  RailMemo.Width := RailPage.SurfaceWidth;
+  RailMemo.Height := RailPage.SurfaceHeight - ScaleY(30);
+  RailMemo.ScrollBars := ssVertical;
+  RailMemo.ReadOnly := True;
+  RailMemo.WordWrap := True;
+  ExtractTemporaryFile('restore-LICENSE-OpenRAIL.txt');
+  if LoadStringFromFile(ExpandConstant('{tmp}\restore-LICENSE-OpenRAIL.txt'), Raw) then
+  begin
+    Txt := UTF8Decode(Raw);
+    StringChangeEx(Txt, #13#10, #10, True);
+    StringChangeEx(Txt, #10, #13#10, True);
+    RailMemo.Text := Txt;
+  end;
+  RailCheck := TNewCheckBox.Create(RailPage);
+  RailCheck.Parent := RailPage.Surface;
+  RailCheck.Left := 0;
+  RailCheck.Top := RailMemo.Height + ScaleY(8);
+  RailCheck.Width := RailPage.SurfaceWidth;
+  RailCheck.Height := ScaleY(20);
+  RailCheck.Caption := 'I accept this license and its use restrictions (Section 2)';
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := (PageID = RailPage.ID) and not WizardIsComponentSelected('restore');
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (CurPageID = RailPage.ID) and not RailCheck.Checked then
+  begin
+    MsgBox('Please accept the license. If you do not want its terms, go back and switch off "Enhance model Restore".', mbInformation, MB_OK);
+    Result := False;
+  end;
+end;

@@ -5,6 +5,8 @@
     <background file="background.tiff" alignment="bottomleft" scaling="none"/>
     <background-darkAqua file="background-darkAqua.tiff" alignment="bottomleft" scaling="none"/>
     <welcome file="welcome.html" mime-type="text/html"/>
+    <!-- the Restore model's license (OpenRAIL) has to be accepted; the page is written by the build -->
+    <license file="license.html" mime-type="text/html"/>
     <!-- the installer shows a page where each plug-in format can be switched on or off -->
     <options customize="always" require-scripts="false" hostArchitectures="arm64,x86_64"/>
     <domains enable_localSystem="true"/>
@@ -28,7 +30,7 @@
     <choice id="neural" title="Neural voice engine" description="The files the neural voice engine needs, shared by all formats (about 70 MB, needs macOS 13 or newer). Without them Alfred works with its classic engine only." start_selected="true">
         <pkg-ref id="com.dmajorsound.alfred.support"/>
     </choice>
-    <choice id="restore" title="Enhance model: Restore" description="Studio voice restoration, worked out when you render (about 36 MB). Needs the neural voice engine files. License: OpenRAIL (restore-LICENSE-OpenRAIL.txt is installed with it). By installing you accept its use restrictions: no unlawful, harmful, harassing or discriminating use." start_selected="true">
+    <choice id="restore" title="Enhance model: Restore" description="Studio voice restoration, worked out when you render (about 36 MB). Needs the neural voice engine files. License: OpenRAIL (restore-LICENSE-OpenRAIL.txt is installed with it). You accepted it on the License page; switch this off if you do not want its terms." start_selected="true">
         <pkg-ref id="com.dmajorsound.alfred.restore"/>
     </choice>
     <choice id="sidon" title="Enhance model: Sidon" description="Builds the voice anew in studio quality, worked out when you render; slow (about 300 MB). Needs the neural voice engine files. MIT License." start_selected="true">

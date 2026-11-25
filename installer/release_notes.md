@@ -37,13 +37,13 @@ Alfred splits a recording into Signal, Noise and Reverb and lets you rebalance t
 >
 > If your browser blocks the download, choose **Keep** in the download list.
 
-### Enhance: Restore and Sidon (new in 0.37)
+### Enhance: Restore and Sidon (since 0.37)
 The **ENHANCE** button next to NEURAL chooses how the Enhance fader works: Classic, **Restore** or **Sidon**. The two new ones are networks that bring a voice closer to a studio recording. They need several seconds of audio at once, so Alfred works them out **when you render** (in REAPER: *Apply track FX to items as new take*, or Render), not during playback. With one of them chosen, Alfred's delay is 5 seconds longer; REAPER compensates for it. 48 kHz, Voice mode.
 - **Restore** keeps the timing and character of the voice; the Enhance fader blends it in.
 - **Sidon** builds the voice anew. It is slow (about real time) and is either on or off.
 
 > [!NOTE]
-> Restore is under the OpenRAIL license. Whoever uses it, or audio made with it, agrees to its use restrictions: no unlawful, harmful, harassing or discriminating use. The license text is installed next to the model (`restore-LICENSE-OpenRAIL.txt`). Sidon is under the MIT License.
+> Restore is under the OpenRAIL license. Whoever uses it, or audio made with it, agrees to its use restrictions: no unlawful, harmful, harassing or discriminating use. Both installers show the license and ask you to accept it before Restore is installed (since 0.38); the text is also installed next to the model (`restore-LICENSE-OpenRAIL.txt`). Sidon is under the MIT License.
 
 ### Updates
 Alfred looks at this page when you open its window. If a newer version is here, an **UPDATE** button appears at the bottom of the plug-in; a click opens the download page. Nothing is installed by itself, and no data other than the request to GitHub is sent.
