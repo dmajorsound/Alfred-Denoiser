@@ -8,6 +8,6 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for t in v1.19.2 v1.20.1 v1.22.0 v1.22.2 v1.23.1 v1.23.2; do
-            echo "== $t"; gh release view "$t" -R microsoft/onnxruntime --json assets -q '.assets[].name' 2>&1 | grep -E "osx|win-x64-[0-9]" || echo "(none)"
-          done
+          gh release view v1.23.1 -R microsoft/onnxruntime --json assets,tagName -q '.tagName, (.assets[].name)' 2>&1 | head -40 || true
+          echo "== latest"; gh release list -R microsoft/onnxruntime -L 8 2>&1 || true
+          echo "== direct"; curl -sI -L "https://github.com/microsoft/onnxruntime/releases/download/v1.23.1/onnxruntime-osx-universal2-1.23.1.tgz" | grep -iE "^HTTP|^location" | head -6
