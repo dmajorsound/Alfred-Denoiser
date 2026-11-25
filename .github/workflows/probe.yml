@@ -5,9 +5,12 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release view v1.23.1 -R microsoft/onnxruntime --json assets,tagName -q '.tagName, (.assets[].name)' 2>&1 | head -40 || true
-          echo "== latest"; gh release list -R microsoft/onnxruntime -L 8 2>&1 || true
-          echo "== direct"; curl -sI -L "https://github.com/microsoft/onnxruntime/releases/download/v1.23.1/onnxruntime-osx-universal2-1.23.1.tgz" | grep -iE "^HTTP|^location" | head -6
+      - run: |
+          for v in 1.19.2 1.20.1 1.22.0 1.23.2; do
+            for plat in macosx_11_0_universal2 macosx_13_0_universal2 macosx_13_0_x86_64 macosx_13_0_arm64 win_amd64; do
+              rm -rf w; mkdir w
+              if pip download "onnxruntime==$v" --no-deps --only-binary=:all: --platform $plat --python-version 3.12 -d w -q 2>/dev/null; then
+                echo "== $v $plat: $(ls w)"; unzip -l w/*.whl | grep -iE "capi/.*(dylib|dll|\.so)" | awk '{print "   ", $1, $4}'
+              else echo "== $v $plat: no wheel"; fi
+            done
+          done
