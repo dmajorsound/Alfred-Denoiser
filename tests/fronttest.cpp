@@ -7,6 +7,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <chrono>
+#include <thread>
 #include <vector>
 int main(int argc, char** argv)
 {
@@ -33,6 +35,13 @@ int main(int argc, char** argv)
     std::vector<float> out((size_t)n); std::vector<double> core((size_t)cap);
     double* spl0 = fx.var("spl0"); double* spl1 = fx.var("spl1");
     const int sizes[6] = { 64, 1024, 333, 2048, 7, 480 };
+    // Enhance as the plug-in runs it: set ALFRED_ENH_DIR to the folder with the models. ALFRED_ENH_PLAYBACK: as in
+    // playback (windows are prepared in the background; a pass waits for them at its end), else as in a render.
+    std::shared_ptr<EnhanceModels> em; EnhanceStage enh; std::vector<double> restBuf(8192, 0.0);
+    if (const char* dir = std::getenv("ALFRED_ENH_DIR")) { em = EnhanceModels::get(argv[1], dir); enh.setModels(em); enh.prepare(1, 4096); }
+    const bool enhOffline = std::getenv("ALFRED_ENH_PLAYBACK") == nullptr;
+    const long long startPos = std::getenv("ALFRED_POS") ? std::atoll(std::getenv("ALFRED_POS")) : 0;
+
     for (int pass = 0; pass < passes; ++pass)
     {
         if (pass > 0)
@@ -43,10 +52,7 @@ int main(int argc, char** argv)
             *fx.var("play_state") = 1;
             front.reset();
         }
-        // Enhance as the plug-in runs it in an offline render: set ALFRED_ENH_DIR to the folder with the models
-        std::shared_ptr<EnhanceModels> em; EnhanceStage enh; std::vector<double> restBuf(8192, 0.0);
-        if (const char* dir = std::getenv("ALFRED_ENH_DIR")) { em = EnhanceModels::get(argv[1], dir); enh.setModels(em); enh.prepare(1, 4096); }
-        const bool enhRun = std::getenv("ALFRED_ENH_PLAYBACK") == nullptr;
+        if (em) { enh.reset(); enh.align(startPos); }
         for (int p = 0, k = 0; p < n; ++k)
         {
             const int want_bs = bsArg > 0 ? bsArg : sizes[k % 6];
@@ -73,13 +79,16 @@ int main(int argc, char** argv)
                 const double* rc[2] = { restBuf.data(), restBuf.data() };
                 const bool plain = power && (int)(*fx.var("slider19") + 0.5) == 0;
                 const double amount = plain ? *fx.var("slider17") * 0.01 : 0.0;
-                enh.process(cp, rc, m, model, amount, enhRun && amount > 0.0);
+                enh.process(cp, rc, m, model, amount, enhOffline);
             }
             else
             front.post(cp, m, hi, lo, (int)*fx.var("pdc_delay"));
             for (int i = 0; i < m; ++i) out[(size_t)(p + i)] = (float)core[(size_t)i];
             p += m;
         }
+        // as a user would: let the background finish before the passage plays again
+        while (em && enh.waiting() > 0) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        if (em) std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
     std::fprintf(stderr, "latency %d\n", (int)*fx.var("pdc_delay") + NeuralVoice::kLatency);
     FILE* o = std::fopen(argv[4], "wb"); std::fwrite(out.data(), 4, out.size(), o); std::fclose(o);

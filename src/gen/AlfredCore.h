@@ -86,7 +86,8 @@ public:
   double v_ext_enh = 0.0;
   double v_ext_enh_load = 0.0;
   double v_ext_enh_on = 0.0;
-  double v_ext_enh_sec = 0.0;
+  double v_ext_enh_pend = 0.0;
+  double v_ext_enh_state = 0.0;
   double v_ext_neural = 0.0;
   double v_ext_noinit = 0.0;
   double v_ext_upd_a = 0.0;

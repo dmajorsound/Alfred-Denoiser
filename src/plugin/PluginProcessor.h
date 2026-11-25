@@ -105,7 +105,9 @@ private:
     double* vEnhModel = nullptr; double* vEnhAmt = nullptr; double* vSolo = nullptr; double* vMuteSig = nullptr;
     double* vExtEnh = nullptr; double* vExtEnhOn = nullptr; double* vExtEnhSec = nullptr; double* vExtEnhLoad = nullptr;
     std::atomic<int> pendingEnhLoad { 0 };
+    double* vExtEnhPend = nullptr; double* vExtEnhState = nullptr;
     bool enhLive = false;
+    juce::int64 expectedPos = -1; int jumpBudget = 8;
 
     std::atomic<int> pendingLatency { -1 };
     int reportedLatency = -1;

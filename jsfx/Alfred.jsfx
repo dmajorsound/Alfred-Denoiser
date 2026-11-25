@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.38 beta
+//version: 0.39 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -40,7 +40,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.38 beta";
+#verstr = "0.39 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -1087,7 +1087,9 @@ ext_neural > 0 ? (
 ext_enh > 0 ? (
   uem = ext_enh_on >= 0.5 ? floor(slider25 + 0.5) : 0;
   ubtn(uebx, unby, uebw, unbh, uem > 0, uhov == 35, uem == 1 ? "ENHANCE: RESTORE" : uem == 2 ? "ENHANCE: SIDON" : "ENHANCE: CLASSIC");
-  sprintf(#uens, "%s has restored %d s of voice in your renders so far.", uem == 1 ? "Restore" : "Sidon", ext_enh_sec);
+  ext_enh_pend >= 0.5 ? sprintf(#uenw, "NOT REAL TIME: preparing %s, %d parts to go. Play the passage again to hear it.", uem == 1 ? "RESTORE" : "SIDON", ext_enh_pend)
+                      : sprintf(#uenw, "NOT REAL TIME: play a passage once to prepare %s, again to hear it. Renders include it.", uem == 1 ? "RESTORE" : "SIDON");
+  sprintf(#uenh, "%s preview: you hear the restored voice.", uem == 1 ? "RESTORE" : "SIDON");
 );
 gfx_setfont(3);
 
@@ -1425,7 +1427,7 @@ uhov == 26 ? gfx_drawstr("Reset: all faders back to their defaults. The noise pr
 uhov == 27 ? gfx_drawstr(udark ? "Dark mode. Click for light." : "Light mode. Click for dark.") :
 uhov == 30 ? gfx_drawstr(uana ? "Gray: input. Colors: what you hear of each part." : "The analyzer is off. The faders and meters still work.") :
 uhov == 34 ? gfx_drawstr("A newer Alfred is available. Click to open the download page.") :
-uhov == 35 ? gfx_drawstr(ext_enh_load >= 0.5 ? "Loading the Enhance model ..." : ext_enh_on < 0.5 ? "Enhance: classic. Click for Restore or Sidon (studio voice)." : ext_enh_sec > 0 ? #uens : slider25 < 1.5 ? "Restore: studio voice. Worked out when you render, not during playback." : "Sidon: voice built anew. Worked out when you render (slow), not during playback.") :
+uhov == 35 ? gfx_drawstr(ext_enh_load >= 0.5 ? "Loading the Enhance model ..." : ext_enh_on < 0.5 ? "Enhance: classic. Click for Restore or Sidon (studio voice, not real time)." : slider25 < 1.5 ? "Restore: studio voice. Not real time: play a passage twice to hear it. Renders include it." : "Sidon: voice built anew, slow. Not real time: play a passage twice to hear it. Renders include it.") :
 uhov == 33 ? gfx_drawstr(ext_neural == 2 ? "Neural voice engine: not available (needs 48 kHz and its installed files)." : slider20 >= 0.5 ? "Neural voice engine: works in Voice mode only." : slider24 >= 0.5 ? "Neural voice engine is on. Click for the classic engine." : "Classic engine is on. Click for the neural voice engine.") :
 uhov == 32 ? gfx_drawstr(ufold ? "Spectrum: click to open the display. The analyzer stays off until you switch it on there." : "Spectrum: click to fold the display away.") :
 uhov == 31 ? gfx_drawstr(uana ? "Analyzer: click to switch the spectrum off and save CPU." : "Analyzer: off, it costs no CPU. Click to show the spectrum.") :
@@ -1442,6 +1444,9 @@ uhov == 29 ? gfx_drawstr("SFX: keeps any sound and removes only the steady noise
 uhov > 100 ? gfx_drawstr("Click to type a value. Enter sets it, Esc leaves it.") :
 uhov == 60 ? gfx_drawstr("Enhance: moves the voice toward a close studio tone. Cuts rumble, boom and dullness.") :
 !uon ? gfx_drawstr("Bypassed.") :
+// Restore and Sidon are not real time: say so in red as long as the restored voice is not what plays
+(ext_enh_on >= 0.5 && slider17 >= 0.5 && ext_enh_state != 1) ? ( gfx_r = 0.94; gfx_g = 0.27; gfx_b = 0.27; gfx_a = 1; gfx_drawstr(#uenw); ) :
+(ext_enh_on >= 0.5 && slider17 >= 0.5) ? gfx_drawstr(#uenh) :
 pmode == 2 ? gfx_drawstr("Using the learned noise print.") :
 pmode == 1 ? gfx_drawstr("Learning the noise print: click the ear again to stop.") :
 gfx_drawstr("Double-click resets a fader, Shift moves it in fine steps, click a number to type it.");

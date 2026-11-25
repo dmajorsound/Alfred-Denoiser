@@ -436,100 +436,219 @@ void EnhanceModels::sidon(const float* in, int n, float* out)
 namespace
 {
 const int kPastRestore = 5 * 48000, kPastSidon = 48000;
-const int kCap = kPastRestore + EnhanceStage::kHop + EnhanceStage::kFade;
+const int kCap = kPastRestore + 2 * (EnhanceStage::kHop + EnhanceStage::kFade);
+const int kQueue = 3 * EnhanceStage::kLatency;
+const size_t kMaxCache = 150, kMaxJobs = 256;
+
+unsigned long long hashWindow(const float* x, int n, int model, int past)
+{
+    unsigned long long h = 1469598103934665603ull ^ (unsigned long long)(model * 7919 + 13);
+    h = (h ^ (unsigned long long)past) * 1099511628211ull;
+    h = (h ^ (unsigned long long)n) * 1099511628211ull;
+    for (int i = 0; i < n; ++i)
+    {
+        unsigned int u; std::memcpy(&u, x + i, sizeof u);
+        h = (h ^ u) * 1099511628211ull;
+        h ^= h >> 29;
+    }
+    return h;
+}
+}
+
+EnhanceStage::EnhanceStage() = default;
+
+EnhanceStage::~EnhanceStage()
+{
+    { const std::lock_guard<std::mutex> g(lock); quit = true; }
+    wake.notify_all();
+    if (thread.joinable()) thread.join();
+}
+
+void EnhanceStage::setModels(std::shared_ptr<EnhanceModels> m)
+{
+    const std::lock_guard<std::mutex> g(lock);
+    models = std::move(m);
 }
 
 void EnhanceStage::prepare(int numChannels, int)
 {
     nch = numChannels < 1 ? 1 : (numChannels > 2 ? 2 : numChannels);
     hist.assign((size_t)kCap, 0.0f);
-    res.assign((size_t)(kHop + kFade), 0.0f);
-    win.assign((size_t)kCap, 0.0f); winOut.assign((size_t)kCap, 0.0f);
+    tail.assign((size_t)kFade, 0.0f);
+    winOut.assign((size_t)kCap, 0.0f); y.assign((size_t)kCap, 0.0f);
+    outQ.assign((size_t)kQueue, 0.0f);
     for (int c = 0; c < 2; ++c) { dV[c].assign((size_t)kLatency, 0.0f); dR[c].assign((size_t)kLatency, 0.0f); }
     dM.assign((size_t)kLatency, 0.0f);
+    if (!thread.joinable()) thread = std::thread([this] { worker(); });
     reset();
 }
 
 void EnhanceStage::reset()
 {
-    histFill = 0; since = 0; first = true; resPos = 0; dPos = 0; mix = 0.0;
-    std::fill(res.begin(), res.end(), 0.0f);
+    histFill = 0; since = 0; first = true; hop0 = kHop; age = 0; tailDry = true;
+    qRead = 0; qFill = 0; dPos = 0; mix = 0.0;
     for (int c = 0; c < 2; ++c) { std::fill(dV[c].begin(), dV[c].end(), 0.0f); std::fill(dR[c].begin(), dR[c].end(), 0.0f); }
     std::fill(dM.begin(), dM.end(), 0.0f);
 }
 
-// A window is complete: hist holds [past][kHop + kFade new samples]. Work out the restored voice for the new part.
-void EnhanceStage::chunk(int model, bool run)
+void EnhanceStage::align(long long pos)
 {
-    const int span = kHop + kFade, n = histFill, past = n - span;
-    const float* x = hist.data();
-    const bool work = run && models && models->loaded(model);
-    const float* y = x + past;
-    if (work)
+    // what has come in so far belongs to another place of the timeline: finish it as one last window
+    if (histFill > 0 && (since > 0 || !first)) chunk(true);
+    histFill = 0; since = 0; first = true;
+    long long m = pos % kHop; if (m < 0) m += kHop;
+    hop0 = kHop - (int)m;
+}
+
+bool EnhanceStage::lookup(unsigned long long key, float* out, int n, bool wait)
+{
+    std::unique_lock<std::mutex> g(lock, std::defer_lock);
+    if (wait) g.lock(); else if (!g.try_lock()) return false;
+    const auto it = cache.find(key);
+    if (it == cache.end() || (int)it->second.size() != n) return false;
+    std::memcpy(out, it->second.data(), sizeof(float) * (size_t)n);
+    return true;
+}
+
+void EnhanceStage::store(unsigned long long key, const float* v, int n)
+{
+    // called with the lock held
+    if (cache.find(key) == cache.end()) cacheOrder.push_back(key);
+    cache[key].assign(v, v + n);
+    while (cacheOrder.size() > kMaxCache) { cache.erase(cacheOrder.front()); cacheOrder.pop_front(); }
+}
+
+void EnhanceStage::worker()
+{
+    std::unique_lock<std::mutex> g(lock);
+    for (;;)
     {
-        if (model == EnhanceModels::kRestore) models->restore(x, n, winOut.data());
-        else models->sidon(x, n, winOut.data());
-        y = winOut.data() + past;
-        enhanced += kHop;
-    }
-    // join with the tail of the window before
-    std::memcpy(win.data(), y, sizeof(float) * (size_t)span);
-    if (!first && work)
-    {
-        const float* old = res.data() + kHop;
-        if (model == EnhanceModels::kRestore)
+        wake.wait(g, [this] { return quit || !jobs.empty(); });
+        if (quit) return;
+        Job j = std::move(jobs.back());          // the newest first: it is what the user listens to now
+        jobs.pop_back();
+        const std::shared_ptr<EnhanceModels> m = models;
+        g.unlock();
+        std::vector<float> out;
+        std::string error;
+        bool ok = false;
+        if (m && m->load(j.model, error))
         {
-            for (int i = 0; i < kFade; ++i)
+            out.assign(j.win.size(), 0.0f);
+            if (j.model == EnhanceModels::kRestore) m->restore(j.win.data(), (int)j.win.size(), out.data());
+            else m->sidon(j.win.data(), (int)j.win.size(), out.data());
+            ok = true;
+        }
+        g.lock();
+        if (ok) store(j.key, out.data() + j.past, (int)out.size() - j.past);
+        queued.erase(j.key);
+        pendingJobs.store((int)jobs.size());
+    }
+}
+
+// Work out the restored voice for the samples that have not left yet.
+// everything = false: a regular window; its last kFade samples stay, they overlap with the next window.
+// everything = true: the timeline jumps; all of it leaves and the next window starts afresh.
+void EnhanceStage::chunk(bool everything)
+{
+    const int n = histFill;
+    const int pending = first ? since : since + kFade;
+    if (pending <= 0 || n < pending) { histFill = 0; since = 0; first = true; return; }
+    const int past = n - pending;
+    const float* x = hist.data();
+    const int model = curModel;
+
+    bool restored = false;
+    if (curWant && models && models->installed(model) && n >= 4096)
+    {
+        const unsigned long long key = hashWindow(x, n, model, past);
+        if (lookup(key, y.data(), pending, curOffline)) restored = true;
+        else if (curOffline)
+        {
+            std::string error;
+            if (models->load(model, error))
             {
-                const float f = (float)(0.5 - 0.5 * std::cos(kPi * (i + 0.5) / kFade));
-                win[(size_t)i] = old[i] * (1.0f - f) + y[i] * f;
+                if (model == EnhanceModels::kRestore) models->restore(x, n, winOut.data());
+                else models->sidon(x, n, winOut.data());
+                std::memcpy(y.data(), winOut.data() + past, sizeof(float) * (size_t)pending);
+                const std::lock_guard<std::mutex> g(lock);
+                store(key, y.data(), pending);
+                restored = true;
             }
         }
         else
         {
+            std::unique_lock<std::mutex> g(lock, std::try_to_lock);
+            if (g.owns_lock() && queued.find(key) == queued.end() && jobs.size() < kMaxJobs)
+            {
+                Job j; j.key = key; j.model = model; j.past = past; j.win.assign(x, x + n);
+                jobs.push_back(std::move(j)); queued.insert(key);
+                pendingJobs.store((int)jobs.size());
+                g.unlock();
+                wake.notify_one();
+            }
+        }
+    }
+    if (!restored) std::memcpy(y.data(), x + past, sizeof(float) * (size_t)pending);
+    if (curWant) lastState.store(restored ? 1 : 2);
+
+    // join with the overlap of the window before
+    if (!first && !(tailDry && !restored))
+    {
+        const int L = model == EnhanceModels::kSidon ? 960 : kFade;
+        int at = 0;
+        if (L < kFade)
+        {
             // Sidon builds each window's voice anew, so two windows do not agree in phase: change over within
             // 20 ms at the quietest place of the overlap
-            const int L = 960;
             const float* src = x + past;
-            double e = 0.0, best = 0.0; int at = 0;
+            double e = 0.0;
             for (int i = 0; i < L; ++i) e += (double)src[i] * src[i];
-            best = e;
+            double best = e;
             for (int i = 1; i + L <= kFade; ++i)
             {
                 e += (double)src[i + L - 1] * src[i + L - 1] - (double)src[i - 1] * src[i - 1];
                 if (e < best) { best = e; at = i; }
             }
-            for (int i = 0; i < kFade; ++i)
-            {
-                const float f = i < at ? 0.0f : i >= at + L ? 1.0f : (float)(0.5 - 0.5 * std::cos(kPi * (i - at + 0.5) / L));
-                win[(size_t)i] = old[i] * (1.0f - f) + y[i] * f;
-            }
+        }
+        for (int i = 0; i < kFade; ++i)
+        {
+            const float f = i < at ? 0.0f : i >= at + L ? 1.0f : (float)(0.5 - 0.5 * std::cos(kPi * (i - at + 0.5) / L));
+            y[(size_t)i] = tail[(size_t)i] * (1.0f - f) + y[(size_t)i] * f;
         }
     }
-    std::memcpy(res.data(), win.data(), sizeof(float) * (size_t)span);
-    resPos = 0; first = false;
 
-    // keep what the next window needs as its past
+    const int leave = everything ? pending : pending - kFade;
+    for (int i = 0; i < leave && qFill < kQueue; ++i) { outQ[(size_t)((qRead + qFill) % kQueue)] = y[(size_t)i]; ++qFill; }
+    if (restored) enhanced += leave;
+    if (everything) { histFill = 0; since = 0; first = true; return; }
+
+    std::memcpy(tail.data(), y.data() + leave, sizeof(float) * (size_t)kFade);
+    tailDry = !restored;
     const int keep = std::min(n, (model == EnhanceModels::kSidon ? kPastSidon : kPastRestore) + kFade);
     if (keep < n) std::memmove(hist.data(), hist.data() + (n - keep), sizeof(float) * (size_t)keep);
-    histFill = keep; since = 0;
+    histFill = keep; since = 0; first = false;
 }
 
-void EnhanceStage::process(double* const* voice, const double* const* rest, int n, int model, double amount, bool run)
+void EnhanceStage::process(double* const* voice, const double* const* rest, int n, int model, double amount, bool offline)
 {
     const double target = model == EnhanceModels::kSidon ? (amount > 0.001 ? 1.0 : 0.0) : std::max(0.0, std::min(1.0, amount));
     const double k = 1.0 - std::exp(-1.0 / (0.010 * 48000.0));
+    curModel = model; curOffline = offline; curWant = amount > 0.0;
+    if (!curWant) lastState.store(0);
     for (int i = 0; i < n; ++i)
     {
         // what leaves now went in kLatency samples ago
-        const float r = first ? 0.0f : res[(size_t)resPos];
-        if (!first) ++resPos;
+        double diff = 0.0;
+        if (age >= kLatency && qFill > 0)
+        {
+            diff = (double)outQ[(size_t)qRead] - (double)dM[(size_t)dPos];
+            qRead = qRead + 1 == kQueue ? 0 : qRead + 1; --qFill;
+        }
         double m = 0.0;
         for (int c = 0; c < nch; ++c) m += voice[c][i];
         const float mono = (float)(m / nch);
         mix += (target - mix) * k;
-        // restored voice minus the mono voice as the windows saw it: added to every channel
-        const double diff = first ? 0.0 : (double)r - (double)dM[(size_t)dPos];
         dM[(size_t)dPos] = mono;
         for (int c = 0; c < nch; ++c)
         {
@@ -540,7 +659,7 @@ void EnhanceStage::process(double* const* voice, const double* const* rest, int 
         }
         dPos = dPos + 1 == kLatency ? 0 : dPos + 1;
 
-        hist[(size_t)histFill++] = mono; ++since;
-        if ((first && since == kHop + kFade) || (!first && since == kHop)) chunk(model, run);
+        hist[(size_t)histFill++] = mono; ++since; ++age;
+        if (since == (first ? hop0 + kFade : kHop)) chunk(false);
     }
 }

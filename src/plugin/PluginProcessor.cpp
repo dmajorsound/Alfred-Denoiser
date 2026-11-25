@@ -55,6 +55,7 @@ AlfredProcessor::AlfredProcessor()
     vExtNeural = core.var("ext_neural"); vExtVoice = core.var("ext_voice");
     vEnhModel = core.var("slider25"); vEnhAmt = core.var("slider17"); vSolo = core.var("slider5"); vMuteSig = core.var("slider6");
     vExtEnh = core.var("ext_enh"); vExtEnhOn = core.var("ext_enh_on"); vExtEnhSec = core.var("ext_enh_sec"); vExtEnhLoad = core.var("ext_enh_load");
+    vExtEnhPend = core.var("ext_enh_pend"); vExtEnhState = core.var("ext_enh_state");
     enhLive = juce::SystemStats::getEnvironmentVariable("ALFRED_ENHANCE_LIVE", {}).isNotEmpty();
     if (vExtNeural) *vExtNeural = 2.0;      // the interface shows the engine switch; "not available" until it is loaded
 
@@ -145,12 +146,14 @@ void AlfredProcessor::enhRun(double* const* voice, const double* const* rest, in
     const bool plain = *vPower >= 0.5 && delta == 0 && (solo == 0 || (solo & 1)) && (vMuteSig == nullptr || *vMuteSig < 0.5)
                        && (vMode == nullptr || *vMode < 0.5);
     const double amount = plain && vEnhAmt ? *vEnhAmt * 0.01 : 0.0;
-    // the networks need seconds of audio at once and far more than real time allows: they work when the host
-    // renders offline. During playback the voice passes unchanged, with the same delay.
-    const bool run = ready && amount > 0.0 && (isNonRealtime() || enhLive);
+    // The networks need seconds of audio at once and more time than playback allows. In an offline render every
+    // window is worked out on the spot; during playback a passage passes unchanged the first time, is worked out
+    // in the background, and is heard restored when it plays again.
     juce::ignoreUnused(nch);
-    enh.process(voice, rest, n, m, amount, run);
+    enh.process(voice, rest, n, m, amount, isNonRealtime() || enhLive);
     if (vExtEnhSec) *vExtEnhSec = enh.secondsEnhanced();
+    if (vExtEnhPend) *vExtEnhPend = (double)enh.waiting();
+    if (vExtEnhState) *vExtEnhState = amount > 0.0 ? (double)enh.hearing() : 0.0;
 }
 
 void AlfredProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -277,14 +280,26 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
     if (vBlock) *vBlock = n;
     if (vPlay)
     {
-        bool playing = false;
+        bool playing = false; bool hasPos = false; juce::int64 tpos = 0;
         if (auto* ph = getPlayHead())
-            if (auto pos = ph->getPosition()) playing = pos->getIsPlaying();
+            if (auto pos = ph->getPosition())
+            {
+                playing = pos->getIsPlaying();
+                if (auto ts = pos->getTimeInSamples()) { hasPos = true; tpos = *ts; }
+            }
         *vPlay = playing ? 1.0 : 0.0;
         // playback starts: the neural engine forgets what it heard before, as the classic engine does in its
         // @block, so a render always begins from the same state
         if (playing && !wasPlaying && front) front->reset();
-        if (playing && !wasPlaying) enh.reset();
+        // Enhance cuts the audio into windows on a fixed grid of the timeline, so a passage that plays again is
+        // cut the same way and its prepared windows are found again. A jump (loop, seek) starts a new window.
+        if (playing && !wasPlaying) { enh.reset(); enh.align(hasPos ? (long long)tpos : 0); jumpBudget = 8; }
+        else if (playing && hasPos && expectedPos >= 0 && jumpBudget > 0 && std::abs(tpos - expectedPos) > 256)
+        {
+            enh.align((long long)tpos);
+            --jumpBudget;      // a host whose position never agrees with the audio does not keep cutting windows
+        }
+        expectedPos = playing && hasPos ? tpos + n : -1;
         wasPlaying = playing;
     }
     const bool neuralUsable = neural != nullptr && std::abs(*vSrate - 48000.0) < 1.0;

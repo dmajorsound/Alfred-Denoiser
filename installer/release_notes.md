@@ -38,7 +38,11 @@ Alfred splits a recording into Signal, Noise and Reverb and lets you rebalance t
 > If your browser blocks the download, choose **Keep** in the download list.
 
 ### Enhance: Restore and Sidon (since 0.37)
-The **ENHANCE** button next to NEURAL chooses how the Enhance fader works: Classic, **Restore** or **Sidon**. The two new ones are networks that bring a voice closer to a studio recording. They need several seconds of audio at once, so Alfred works them out **when you render** (in REAPER: *Apply track FX to items as new take*, or Render), not during playback. With one of them chosen, Alfred's delay is 5 seconds longer; REAPER compensates for it. 48 kHz, Voice mode.
+The **ENHANCE** button next to NEURAL chooses how the Enhance fader works: Classic, **Restore** or **Sidon**. The two new ones are networks that bring a voice closer to a studio recording. They need several seconds of audio at once and are **not real time**:
+- **Listening (since 0.39):** play a passage once. You hear it without the network while Alfred prepares it in the background (a red line at the bottom tells you). Play the same passage again and you hear the restored voice. Looping a passage works too.
+- **Rendering** (in REAPER: right-click the item, *Apply track/take FX to items as new take*, or Render) always includes it.
+
+With one of them chosen, Alfred's delay is 5 seconds longer; REAPER compensates for it. 48 kHz, Voice mode.
 - **Restore** keeps the timing and character of the voice; the Enhance fader blends it in.
 - **Sidon** builds the voice anew. It is slow (about real time) and is either on or off.
 
