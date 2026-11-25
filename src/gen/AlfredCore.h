@@ -85,6 +85,10 @@ public:
   double v_ewid = 0.0;
   double v_ext_neural = 0.0;
   double v_ext_noinit = 0.0;
+  double v_ext_upd_a = 0.0;
+  double v_ext_upd_b = 0.0;
+  double v_ext_upd_open = 0.0;
+  double v_ext_update = 0.0;
   double v_ext_voice = 0.0;
   double v_fcount = 0.0;
   double v_fl = 0.0;
@@ -419,6 +423,10 @@ public:
   double v_uty1 = 0.0;
   double v_uty2 = 0.0;
   double v_utyped = 0.0;
+  double v_uuph = 0.0;
+  double v_uupw = 0.0;
+  double v_uupx = 0.0;
+  double v_uupy = 0.0;
   double v_uvw = 0.0;
   double v_uvw2 = 0.0;
   double v_uvx = 0.0;

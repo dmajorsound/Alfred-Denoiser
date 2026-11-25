@@ -37,4 +37,7 @@ Alfred splits a recording into Signal, Noise and Reverb and lets you rebalance t
 >
 > If your browser blocks the download, choose **Keep** in the download list.
 
+### Updates
+Alfred looks at this page when you open its window. If a newer version is here, an **UPDATE** button appears at the bottom of the plug-in; a click opens the download page. Nothing is installed by itself, and no data other than the request to GitHub is sent.
+
 V VERSION, developed with AI assistance · [dmajorsound.com](https://dmajorsound.com)

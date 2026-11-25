@@ -2,6 +2,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 #include "JuceGfx.h"
+#include "UpdateCheck.h"
 
 class AlfredEditor : public juce::AudioProcessorEditor, private juce::Timer
 {
@@ -33,6 +34,9 @@ private:
     double* wantKey = nullptr; double* wantH = nullptr; double lastWantKey = 0;   // layout height asked for by the script
     double* mx; double* my; double* mcap; double* mwheel;
     double* gw; double* gh; double* gretina;
+    juce::SharedResourcePointer<UpdateCheck> updateCheck;   // one for all open Alfred windows
+    double* updFlag = nullptr; double* updA = nullptr; double* updB = nullptr; double* updOpen = nullptr;
+    juce::String updPage;
     int buttons = 0;
     float lastScale = 1.0f;
 
