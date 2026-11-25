@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.39 beta
+//version: 0.40 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -40,7 +40,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.39 beta";
+#verstr = "0.40 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -1012,6 +1012,22 @@ gfx_setfont(1);
 ucol(ucTEXT, 1); gfx_x = uox+50*usc; gfx_y = 8*usc; gfx_drawstr("Alfred");
 // the dmajorsound mark (only the graphic), above the end of the title, a little to the right and up
 gfx_measurestr("Alfred", uttw, utth);
+// a newer Alfred has been released (the plug-in asks GitHub once per session and sets ext_update): as in OLAAF,
+// a light red dot that blinks and "0.40 is out" by the name; a click opens the download page
+ext_update >= 0.5 ? (
+  sprintf(#uupd, "%d.%d is out", ext_upd_a, ext_upd_b);
+  sprintf(#uupt, "Alfred %d.%d beta is out. Click to open the download page.", ext_upd_a, ext_upd_b);
+  gfx_setfont(8); gfx_measurestr(#uupd, uunw, uunh);
+  uudr = 3.5*usc;
+  uudx = floor(uox+50*usc + uttw + 10*usc) + uudr; uudy = floor(8*usc + utth*0.62);
+  ucol(0xF06E6E, 1);
+  gfx_circle(uudx, uudy, uudr, (floor(time_precise()/0.7) % 2) == 0, 1);
+  udark ? (gfx_r = 1; gfx_g = 0x7A/255; gfx_b = 0x6E/255) : (gfx_r = 0xC8/255; gfx_g = 0x42/255; gfx_b = 0x3B/255);
+  gfx_x = floor(uudx + uudr + 5*usc); gfx_y = floor(uudy - uunh/2); gfx_drawstr(#uupd);
+  uupx = floor(uudx - uudr - 4*usc); uupy = floor(uudy - 9*usc);
+  uupw = floor(gfx_x + 4*usc) - uupx; uuph = floor(18*usc);
+  gfx_a = 1;
+) : ( uupw = 0; );
 gfx_a = 1;
 gfx_setfont(8);
 ucol(ucMUTED, 1); gfx_x = uox+51*usc; gfx_y = 30*usc; gfx_drawstr("A simple Denoiser at your Service");
@@ -1392,16 +1408,6 @@ gfx_setfont(9);
 sprintf(#uver, "V %s - developed with AI assistance", #verstr);
 gfx_measurestr(#uver, ulgw, ulgh);
 ucol(ucMUTED, 1); gfx_x = uox+16*usc; gfx_y = floor(ufcy - ulgh/2); gfx_drawstr(#uver);
-// a newer version has been released (the plug-in asks GitHub once per session and sets ext_update): a button after
-// the version text opens the download page
-ext_update >= 0.5 ? (
-  sprintf(#uupd, "UPDATE %d.%d", ext_upd_a, ext_upd_b);
-  gfx_setfont(7); gfx_measurestr(#uupd, uupw, uuph);
-  uupw = floor(uupw + 16*usc); uuph = floor(15*usc);
-  uupx = floor(uox+16*usc + ulgw + 12*usc); uupy = floor(ufcy - uuph/2);
-  ubtn(uupx, uupy, uupw, uuph, 1, uhov == 34, #uupd);
-  gfx_setfont(9);
-);
 gfx_a = 1; ucol(ucMUTED, 1);
 gfx_measurestr("dmajorsound.com", ulgw, ulgh);
 // the dmajorsound mark sits in the bottom right corner, "dmajorsound.com" to its left, both on one center line
@@ -1426,7 +1432,7 @@ uhov == 24 ? gfx_drawstr("Expert tab: noise print, thresholds, Enhance and Prese
 uhov == 26 ? gfx_drawstr("Reset: all faders back to their defaults. The noise print stays.") :
 uhov == 27 ? gfx_drawstr(udark ? "Dark mode. Click for light." : "Light mode. Click for dark.") :
 uhov == 30 ? gfx_drawstr(uana ? "Gray: input. Colors: what you hear of each part." : "The analyzer is off. The faders and meters still work.") :
-uhov == 34 ? gfx_drawstr("A newer Alfred is available. Click to open the download page.") :
+uhov == 34 ? gfx_drawstr(#uupt) :
 uhov == 35 ? gfx_drawstr(ext_enh_load >= 0.5 ? "Loading the Enhance model ..." : ext_enh_on < 0.5 ? "Enhance: classic. Click for Restore or Sidon (studio voice, not real time)." : slider25 < 1.5 ? "Restore: studio voice. Not real time: play a passage twice to hear it. Renders include it." : "Sidon: voice built anew, slow. Not real time: play a passage twice to hear it. Renders include it.") :
 uhov == 33 ? gfx_drawstr(ext_neural == 2 ? "Neural voice engine: not available (needs 48 kHz and its installed files)." : slider20 >= 0.5 ? "Neural voice engine: works in Voice mode only." : slider24 >= 0.5 ? "Neural voice engine is on. Click for the classic engine." : "Classic engine is on. Click for the neural voice engine.") :
 uhov == 32 ? gfx_drawstr(ufold ? "Spectrum: click to open the display. The analyzer stays off until you switch it on there." : "Spectrum: click to fold the display away.") :

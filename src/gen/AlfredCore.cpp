@@ -43,7 +43,7 @@ AlfredCore::AlfredCore()
   str_define(90003, "+");
   str_define(90004, "");
   str_define(90005, "%s%.1f dB");
-  str_define(90006, "0.39 beta");
+  str_define(90006, "0.40 beta");
   str_define(90007, "0000007ffffeefffffdfd810");
   str_define(90008, "0000008ffff84ffffc1fffe3");
   str_define(90009, "0000008ffff84ffffb0ffffc");
@@ -83,83 +83,83 @@ AlfredCore::AlfredCore()
   str_define(90043, "0000027bdfffffffffffffc0000000000000000000000000");
   str_define(90044, "Arial");
   str_define(90045, "Alfred");
-  str_define(90046, "A simple Denoiser at your Service");
-  str_define(90047, "    VOICE");
-  str_define(90048, "SFX");
-  str_define(90049, "BASIC");
-  str_define(90050, "EXPERT");
-  str_define(90051, "SPECTRUM");
-  str_define(90052, "NEURAL");
-  str_define(90053, "ENHANCE: RESTORE");
-  str_define(90054, "ENHANCE: SIDON");
-  str_define(90055, "ENHANCE: CLASSIC");
-  str_define(90056, "RESTORE");
-  str_define(90057, "SIDON");
-  str_define(90058, "NOT REAL TIME: preparing %s, %d parts to go. Play the passage again to hear it.");
-  str_define(90059, "NOT REAL TIME: play a passage once to prepare %s, again to hear it. Renders include it.");
-  str_define(90060, "%s preview: you hear the restored voice.");
-  str_define(90061, "50");
-  str_define(90062, "100");
-  str_define(90063, "200");
-  str_define(90064, "500");
-  str_define(90065, "1k");
-  str_define(90066, "2k");
-  str_define(90067, "5k");
-  str_define(90068, "10k");
-  str_define(90069, "Analyzer off");
-  str_define(90070, "ENHANCE");
-  str_define(90071, "ANALYZER");
-  str_define(90072, "NOISE PRINT");
-  str_define(90073, "Listening ...");
-  str_define(90074, "Learned");
-  str_define(90075, "None, adaptive");
-  str_define(90076, "ADAPTIVE");
-  str_define(90077, "Alt-click the ear to clear");
-  str_define(90078, "THRESHOLD");
-  str_define(90079, "BAND THRESHOLDS (Hz)");
-  str_define(90080, "SIGNAL");
-  str_define(90081, "NOISE");
-  str_define(90082, "TONAL");
-  str_define(90083, "20-120");
-  str_define(90084, "120-500");
-  str_define(90085, "500-2k");
-  str_define(90086, "2k-6k");
-  str_define(90087, "6k-20k");
-  str_define(90088, "PRESERVE");
-  str_define(90089, "%s|");
-  str_define(90090, "REVERB");
-  str_define(90091, "+24");
-  str_define(90092, "0");
-  str_define(90093, "-inf");
-  str_define(90094, "Delta");
-  str_define(90095, "Muted");
-  str_define(90096, "Solo");
-  str_define(90097, "S");
-  str_define(90098, "M");
-  str_define(90099, "%f");
-  str_define(90100, "%s%c");
-  str_define(90101, "V %s - developed with AI assistance");
-  str_define(90102, "UPDATE %d.%d");
-  str_define(90103, "dmajorsound.com");
-  str_define(90104, "Signal: level of the sound you want to keep.");
-  str_define(90105, "Noise: level of the steady background noise.");
-  str_define(90106, "Noise: level of everything that is not the voice.");
-  str_define(90107, "Reverb: level of the room tail behind the sound.");
-  str_define(90108, "Solo: hear this part alone. Shift-click adds another part, e.g. Noise + Reverb.");
-  str_define(90109, "Mute: silence this part.");
-  str_define(90110, "Delta: hear only what this fader takes away from its part.");
-  str_define(90111, "Power: bypass. The delay stays compensated.");
-  str_define(90112, "Adaptive: drop the noise print and follow the noise floor.");
-  str_define(90113, "Listening. Click again to stop and keep the noise print.");
-  str_define(90114, "Learn: click, play only the noise, click again. Alt-click clears the print.");
-  str_define(90115, "Basic tab: three levels with solo and mute.");
-  str_define(90116, "Expert tab: noise print, thresholds, Enhance and Preserve Transients.");
-  str_define(90117, "Reset: all faders back to their defaults. The noise print stays.");
-  str_define(90118, "Dark mode. Click for light.");
-  str_define(90119, "Light mode. Click for dark.");
-  str_define(90120, "Gray: input. Colors: what you hear of each part.");
-  str_define(90121, "The analyzer is off. The faders and meters still work.");
-  str_define(90122, "A newer Alfred is available. Click to open the download page.");
+  str_define(90046, "%d.%d is out");
+  str_define(90047, "Alfred %d.%d beta is out. Click to open the download page.");
+  str_define(90048, "A simple Denoiser at your Service");
+  str_define(90049, "    VOICE");
+  str_define(90050, "SFX");
+  str_define(90051, "BASIC");
+  str_define(90052, "EXPERT");
+  str_define(90053, "SPECTRUM");
+  str_define(90054, "NEURAL");
+  str_define(90055, "ENHANCE: RESTORE");
+  str_define(90056, "ENHANCE: SIDON");
+  str_define(90057, "ENHANCE: CLASSIC");
+  str_define(90058, "RESTORE");
+  str_define(90059, "SIDON");
+  str_define(90060, "NOT REAL TIME: preparing %s, %d parts to go. Play the passage again to hear it.");
+  str_define(90061, "NOT REAL TIME: play a passage once to prepare %s, again to hear it. Renders include it.");
+  str_define(90062, "%s preview: you hear the restored voice.");
+  str_define(90063, "50");
+  str_define(90064, "100");
+  str_define(90065, "200");
+  str_define(90066, "500");
+  str_define(90067, "1k");
+  str_define(90068, "2k");
+  str_define(90069, "5k");
+  str_define(90070, "10k");
+  str_define(90071, "Analyzer off");
+  str_define(90072, "ENHANCE");
+  str_define(90073, "ANALYZER");
+  str_define(90074, "NOISE PRINT");
+  str_define(90075, "Listening ...");
+  str_define(90076, "Learned");
+  str_define(90077, "None, adaptive");
+  str_define(90078, "ADAPTIVE");
+  str_define(90079, "Alt-click the ear to clear");
+  str_define(90080, "THRESHOLD");
+  str_define(90081, "BAND THRESHOLDS (Hz)");
+  str_define(90082, "SIGNAL");
+  str_define(90083, "NOISE");
+  str_define(90084, "TONAL");
+  str_define(90085, "20-120");
+  str_define(90086, "120-500");
+  str_define(90087, "500-2k");
+  str_define(90088, "2k-6k");
+  str_define(90089, "6k-20k");
+  str_define(90090, "PRESERVE");
+  str_define(90091, "%s|");
+  str_define(90092, "REVERB");
+  str_define(90093, "+24");
+  str_define(90094, "0");
+  str_define(90095, "-inf");
+  str_define(90096, "Delta");
+  str_define(90097, "Muted");
+  str_define(90098, "Solo");
+  str_define(90099, "S");
+  str_define(90100, "M");
+  str_define(90101, "%f");
+  str_define(90102, "%s%c");
+  str_define(90103, "V %s - developed with AI assistance");
+  str_define(90104, "dmajorsound.com");
+  str_define(90105, "Signal: level of the sound you want to keep.");
+  str_define(90106, "Noise: level of the steady background noise.");
+  str_define(90107, "Noise: level of everything that is not the voice.");
+  str_define(90108, "Reverb: level of the room tail behind the sound.");
+  str_define(90109, "Solo: hear this part alone. Shift-click adds another part, e.g. Noise + Reverb.");
+  str_define(90110, "Mute: silence this part.");
+  str_define(90111, "Delta: hear only what this fader takes away from its part.");
+  str_define(90112, "Power: bypass. The delay stays compensated.");
+  str_define(90113, "Adaptive: drop the noise print and follow the noise floor.");
+  str_define(90114, "Listening. Click again to stop and keep the noise print.");
+  str_define(90115, "Learn: click, play only the noise, click again. Alt-click clears the print.");
+  str_define(90116, "Basic tab: three levels with solo and mute.");
+  str_define(90117, "Expert tab: noise print, thresholds, Enhance and Preserve Transients.");
+  str_define(90118, "Reset: all faders back to their defaults. The noise print stays.");
+  str_define(90119, "Dark mode. Click for light.");
+  str_define(90120, "Light mode. Click for dark.");
+  str_define(90121, "Gray: input. Colors: what you hear of each part.");
+  str_define(90122, "The analyzer is off. The faders and meters still work.");
   str_define(90123, "Loading the Enhance model ...");
   str_define(90124, "Enhance: classic. Click for Restore or Sidon (studio voice, not real time).");
   str_define(90125, "Restore: studio voice. Not real time: play a passage twice to hear it. Renders include it.");
@@ -197,6 +197,7 @@ AlfredCore::AlfredCore()
   str_define(80006, "");
   str_define(80007, "");
   str_define(80008, "");
+  str_define(80009, "");
   v_slider1 = 0.0;
   v_slider2 = 0.0;
   v_slider3 = 0.0;
@@ -643,6 +644,11 @@ double* AlfredCore::var(const char* n)
   if (!std::strcmp(n, "uty1")) return &v_uty1;
   if (!std::strcmp(n, "uty2")) return &v_uty2;
   if (!std::strcmp(n, "utyped")) return &v_utyped;
+  if (!std::strcmp(n, "uudr")) return &v_uudr;
+  if (!std::strcmp(n, "uudx")) return &v_uudx;
+  if (!std::strcmp(n, "uudy")) return &v_uudy;
+  if (!std::strcmp(n, "uunh")) return &v_uunh;
+  if (!std::strcmp(n, "uunw")) return &v_uunw;
   if (!std::strcmp(n, "uuph")) return &v_uuph;
   if (!std::strcmp(n, "uupw")) return &v_uupw;
   if (!std::strcmp(n, "uupx")) return &v_uupx;
@@ -2727,12 +2733,42 @@ void AlfredCore::sec_gfx()
   (void)((v_gfx_y = DF((8.0 * v_usc))));
   (void)(g_drawstr(90045.0));
   (void)(g_measurestr(90045.0, &v_uttw, &v_utth));
+  if (T(((v_ext_update) >= (0.5) ? 1.0 : 0.0))) {
+    (void)(str_printf(80004.0, 90046.0, {v_ext_upd_a, v_ext_upd_b}));
+    (void)(str_printf(80005.0, 90047.0, {v_ext_upd_a, v_ext_upd_b}));
+    (void)(g_setfont(8.0, -1.0, 0.0, 0.0));
+    (void)(g_measurestr(80004.0, &v_uunw, &v_uunh));
+    (void)((v_uudr = DF((3.5 * v_usc))));
+    (void)((v_uudx = DF((std::floor((((v_uox + (50.0 * v_usc)) + v_uttw) + (10.0 * v_usc))) + v_uudr))));
+    (void)((v_uudy = DF(std::floor(((8.0 * v_usc) + (v_utth * 0.62))))));
+    (void)(f_ucol(15756910.0, 1.0));
+    (void)(g_circle(v_uudx, v_uudy, v_uudr, EQ(MOD(std::floor((rt_time_precise() / 0.7)), 2.0), 0.0), 1.0));
+    if (T(v_udark)) {
+      (void)((v_gfx_r = DF(1.0)));
+      (void)((v_gfx_g = DF((122.0 / 255.0))));
+      (void)((v_gfx_b = DF((110.0 / 255.0))));
+    } else {
+      (void)((v_gfx_r = DF((200.0 / 255.0))));
+      (void)((v_gfx_g = DF((66.0 / 255.0))));
+      (void)((v_gfx_b = DF((59.0 / 255.0))));
+    }
+    (void)((v_gfx_x = DF(std::floor(((v_uudx + v_uudr) + (5.0 * v_usc))))));
+    (void)((v_gfx_y = DF(std::floor((v_uudy - (v_uunh / 2.0))))));
+    (void)(g_drawstr(80004.0));
+    (void)((v_uupx = DF(std::floor(((v_uudx - v_uudr) - (4.0 * v_usc))))));
+    (void)((v_uupy = DF(std::floor((v_uudy - (9.0 * v_usc))))));
+    (void)((v_uupw = DF((std::floor((v_gfx_x + (4.0 * v_usc))) - v_uupx))));
+    (void)((v_uuph = DF(std::floor((18.0 * v_usc)))));
+    (void)((v_gfx_a = DF(1.0)));
+  } else {
+    (void)((v_uupw = DF(0.0)));
+  }
   (void)((v_gfx_a = DF(1.0)));
   (void)(g_setfont(8.0, -1.0, 0.0, 0.0));
   (void)(f_ucol(v_ucmuted, 1.0));
   (void)((v_gfx_x = DF((v_uox + (51.0 * v_usc)))));
   (void)((v_gfx_y = DF((30.0 * v_usc))));
-  (void)(g_drawstr(90046.0));
+  (void)(g_drawstr(90048.0));
   (void)(g_setfont(6.0, -1.0, 0.0, 0.0));
   (void)((v_uph = DF(std::floor((22.0 * v_usc)))));
   (void)((v_upy2 = DF(std::floor((12.0 * v_usc)))));
@@ -2770,8 +2806,8 @@ void AlfredCore::sec_gfx()
     (void)((v_uhov = DF(29.0)));
   }
   (void)(g_setfont(7.0, -1.0, 0.0, 0.0));
-  (void)(f_ubtn(v_umx1, v_upy2, v_umw1, v_uph, (T(v_umfx) ? 0.0 : 1.0), EQ(v_uhov, 28.0), 90047.0));
-  (void)(f_ubtn(v_umx2, v_upy2, v_umw2, v_uph, v_umfx, EQ(v_uhov, 29.0), 90048.0));
+  (void)(f_ubtn(v_umx1, v_upy2, v_umw1, v_uph, (T(v_umfx) ? 0.0 : 1.0), EQ(v_uhov, 28.0), 90049.0));
+  (void)(f_ubtn(v_umx2, v_upy2, v_umw2, v_uph, v_umfx, EQ(v_uhov, 29.0), 90050.0));
   (void)(f_ucol((T(((T(((T((T(v_umfx) ? 0.0 : 1.0)) && T(v_uon)) ? 1.0 : 0.0)) && T(((v_vv) > (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0)) ? v_ucacto : v_ucdim), 1.0));
   (void)(g_circle((v_umx1 + std::floor((10.0 * v_usc))), (v_upy2 + std::floor((v_uph / 2.0))), ([&]() -> double { double _t578 = 2.0; double _t579 = (2.5 * v_usc); return _t578 < _t579 ? _t579 : _t578; }()), 1.0, 1.0));
   (void)(g_setfont(6.0, -1.0, 0.0, 0.0));
@@ -2787,8 +2823,8 @@ void AlfredCore::sec_gfx()
   if (T(f_uin(v_uvx2, v_uty2, v_uvw2, v_uth))) {
     (void)((v_uhov = DF(24.0)));
   }
-  (void)(f_utab(v_uvx, v_uvw, (T(v_uadv) ? 0.0 : 1.0), EQ(v_uhov, 23.0), 90049.0));
-  (void)(f_utab(v_uvx2, v_uvw2, v_uadv, EQ(v_uhov, 24.0), 90050.0));
+  (void)(f_utab(v_uvx, v_uvw, (T(v_uadv) ? 0.0 : 1.0), EQ(v_uhov, 23.0), 90051.0));
+  (void)(f_utab(v_uvx2, v_uvw2, v_uadv, EQ(v_uhov, 24.0), 90052.0));
   (void)(f_ucol(v_ucbg, 1.0));
   (void)(g_rect((v_uvx - 2.0), std::floor((46.0 * v_usc)), ((v_uvx2 + (v_uvw2 - v_uvx)) + 4.0), std::floor((10.0 * v_usc)), 1.0));
   (void)(f_ucol((T(v_udark) ? v_uchair : v_ucbord), 1.0));
@@ -2834,23 +2870,23 @@ void AlfredCore::sec_gfx()
     (void)(g_triangle((v_ufcx - (4.0 * v_usc)), (v_ufcc - (2.5 * v_usc)), (v_ufcx + (4.0 * v_usc)), (v_ufcc - (2.5 * v_usc)), v_ufcx, (v_ufcc + (3.0 * v_usc))));
   }
   (void)(g_setfont(7.0, -1.0, 0.0, 0.0));
-  (void)(g_measurestr(90051.0, &v_ufbw, &v_ufbt));
+  (void)(g_measurestr(90053.0, &v_ufbw, &v_ufbt));
   (void)((v_gfx_x = DF((v_usx + std::floor((24.0 * v_usc))))));
   (void)((v_gfx_y = DF(std::floor((v_ufby + ((v_ufbh - v_ufbt) / 2.0))))));
-  (void)(g_drawstr(90051.0));
+  (void)(g_drawstr(90053.0));
   if (T(((v_ext_neural) > (0.0) ? 1.0 : 0.0))) {
     (void)((v_unon = DF(((T(((T(((v_slider24) >= (0.5) ? 1.0 : 0.0)) && T(EQ(v_ext_neural, 1.0))) ? 1.0 : 0.0)) && T(((v_slider20) < (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0))));
-    (void)(f_ubtn(v_unbx, v_unby, v_unbw, v_unbh, v_unon, EQ(v_uhov, 33.0), 90052.0));
+    (void)(f_ubtn(v_unbx, v_unby, v_unbw, v_unbh, v_unon, EQ(v_uhov, 33.0), 90054.0));
   }
   if (T(((v_ext_enh) > (0.0) ? 1.0 : 0.0))) {
     (void)((v_uem = DF((T(((v_ext_enh_on) >= (0.5) ? 1.0 : 0.0)) ? std::floor((v_slider25 + 0.5)) : 0.0))));
-    (void)(f_ubtn(v_uebx, v_unby, v_uebw, v_unbh, ((v_uem) > (0.0) ? 1.0 : 0.0), EQ(v_uhov, 35.0), (T(EQ(v_uem, 1.0)) ? 90053.0 : (T(EQ(v_uem, 2.0)) ? 90054.0 : 90055.0))));
+    (void)(f_ubtn(v_uebx, v_unby, v_uebw, v_unbh, ((v_uem) > (0.0) ? 1.0 : 0.0), EQ(v_uhov, 35.0), (T(EQ(v_uem, 1.0)) ? 90055.0 : (T(EQ(v_uem, 2.0)) ? 90056.0 : 90057.0))));
     if (T(((v_ext_enh_pend) >= (0.5) ? 1.0 : 0.0))) {
-      (void)(str_printf(80004.0, 90058.0, {(T(EQ(v_uem, 1.0)) ? 90056.0 : 90057.0), v_ext_enh_pend}));
+      (void)(str_printf(80006.0, 90060.0, {(T(EQ(v_uem, 1.0)) ? 90058.0 : 90059.0), v_ext_enh_pend}));
     } else {
-      (void)(str_printf(80004.0, 90059.0, {(T(EQ(v_uem, 1.0)) ? 90056.0 : 90057.0)}));
+      (void)(str_printf(80006.0, 90061.0, {(T(EQ(v_uem, 1.0)) ? 90058.0 : 90059.0)}));
     }
-    (void)(str_printf(80005.0, 90060.0, {(T(EQ(v_uem, 1.0)) ? 90056.0 : 90057.0)}));
+    (void)(str_printf(80007.0, 90062.0, {(T(EQ(v_uem, 1.0)) ? 90058.0 : 90059.0)}));
   }
   (void)(g_setfont(3.0, -1.0, 0.0, 0.0));
   (void)((v_usy = DF(std::floor((78.0 * v_usc)))));
@@ -2888,7 +2924,7 @@ void AlfredCore::sec_gfx()
         (void)(f_ucol(v_ucdim, 1.0));
         (void)((v_gfx_x = DF((v_ugx + (4.0 * v_usc)))));
         (void)((v_gfx_y = DF((v_usy + (3.0 * v_usc)))));
-        (void)(g_drawstr((T(EQ(v_ugn, 0.0)) ? 90061.0 : (T(EQ(v_ugn, 1.0)) ? 90062.0 : (T(EQ(v_ugn, 2.0)) ? 90063.0 : (T(EQ(v_ugn, 3.0)) ? 90064.0 : (T(EQ(v_ugn, 4.0)) ? 90065.0 : (T(EQ(v_ugn, 5.0)) ? 90066.0 : (T(EQ(v_ugn, 6.0)) ? 90067.0 : 90068.0)))))))));
+        (void)(g_drawstr((T(EQ(v_ugn, 0.0)) ? 90063.0 : (T(EQ(v_ugn, 1.0)) ? 90064.0 : (T(EQ(v_ugn, 2.0)) ? 90065.0 : (T(EQ(v_ugn, 3.0)) ? 90066.0 : (T(EQ(v_ugn, 4.0)) ? 90067.0 : (T(EQ(v_ugn, 5.0)) ? 90068.0 : (T(EQ(v_ugn, 6.0)) ? 90069.0 : 90070.0)))))))));
       }
       (void)((v_ugn = DF(v_ugn + 1.0)));
     }
@@ -2904,10 +2940,10 @@ void AlfredCore::sec_gfx()
     } else {
       (void)(g_setfont(2.0, -1.0, 0.0, 0.0));
       (void)(f_ucol(v_ucdim, 1.0));
-      (void)(g_measurestr(90069.0, &v_uaw, &v_uah2));
+      (void)(g_measurestr(90071.0, &v_uaw, &v_uah2));
       (void)((v_gfx_x = DF(std::floor((v_usx + ((v_usw - v_uaw) / 2.0))))));
       (void)((v_gfx_y = DF(std::floor((v_usy + ((v_ush / 2.0) - (v_uah2 / 2.0)))))));
-      (void)(g_drawstr(90069.0));
+      (void)(g_drawstr(90071.0));
       (void)(g_setfont(3.0, -1.0, 0.0, 0.0));
     }
     if (T(((T(v_uadv) && T(((v_slider17) > (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
@@ -2928,7 +2964,7 @@ void AlfredCore::sec_gfx()
       (void)(g_setfont(8.0, -1.0, 0.0, 0.0));
       (void)((v_gfx_x = DF((v_usx + (v_usw - (52.0 * v_usc))))));
       (void)((v_gfx_y = DF((v_usy + ((v_ush * 0.5) - (13.0 * v_usc))))));
-      (void)(g_drawstr(90070.0));
+      (void)(g_drawstr(90072.0));
       (void)(g_setfont(3.0, -1.0, 0.0, 0.0));
     }
     (void)(f_ucol(v_ucline, 1.0));
@@ -2949,7 +2985,7 @@ void AlfredCore::sec_gfx()
     }
     (void)(f_ucol(v_ucstage, 1.0));
     (void)(f_urr(v_uanx, v_uany, v_uanw, v_uanh, ([&]() -> double { double _t605 = 2.0; double _t606 = std::floor((3.0 * v_usc)); return _t605 < _t606 ? _t606 : _t605; }()), 1.0));
-    (void)(f_ubtn(v_uanx, v_uany, v_uanw, v_uanh, v_uana, EQ(v_uhov, 31.0), 90071.0));
+    (void)(f_ubtn(v_uanx, v_uany, v_uanw, v_uanh, v_uana, EQ(v_uhov, 31.0), 90073.0));
     (void)(g_setfont(3.0, -1.0, 0.0, 0.0));
   }
   (void)((v_uyk = DF((T(v_ufold) ? std::floor((82.0 * v_usc)) : ((v_usy + v_ush) + std::floor((12.0 * v_usc)))))));
@@ -2987,17 +3023,17 @@ void AlfredCore::sec_gfx()
     (void)(f_ucol(v_uctext, 1.0));
     (void)((v_gfx_x = DF((v_uox + (72.0 * v_usc)))));
     (void)((v_gfx_y = DF((v_uay + (30.0 * v_usc)))));
-    (void)(g_drawstr(90072.0));
+    (void)(g_drawstr(90074.0));
     (void)(g_setfont(2.0, -1.0, 0.0, 0.0));
     (void)(f_ucol(v_ucmuted, 1.0));
     (void)((v_gfx_x = DF((v_uox + (72.0 * v_usc)))));
     (void)((v_gfx_y = DF((v_uay + (45.0 * v_usc)))));
-    (void)(g_drawstr((T(EQ(v_pmode, 1.0)) ? 90073.0 : (T(EQ(v_pmode, 2.0)) ? 90074.0 : 90075.0))));
+    (void)(g_drawstr((T(EQ(v_pmode, 1.0)) ? 90075.0 : (T(EQ(v_pmode, 2.0)) ? 90076.0 : 90077.0))));
     (void)(g_setfont(6.0, -1.0, 0.0, 0.0));
     (void)((v_uapx = DF(std::floor((v_uox + (28.0 * v_usc))))));
     (void)((v_uapy = DF(std::floor((v_uay + (82.0 * v_usc))))));
     (void)((v_uapw = DF(std::floor((84.0 * v_usc)))));
-    (void)(f_upill(v_uapx, v_uapy, v_uapw, v_uph, EQ(v_pmode, 0.0), 90076.0));
+    (void)(f_upill(v_uapx, v_uapy, v_uapw, v_uph, EQ(v_pmode, 0.0), 90078.0));
     if (T(f_uin(v_uapx, v_uapy, v_uapw, v_uph))) {
       (void)((v_uhov = DF(21.0)));
     }
@@ -3005,7 +3041,7 @@ void AlfredCore::sec_gfx()
     (void)(f_ucol(v_ucdim, 1.0));
     (void)((v_gfx_x = DF((v_uox + (28.0 * v_usc)))));
     (void)((v_gfx_y = DF((v_uay + (116.0 * v_usc)))));
-    (void)(g_drawstr(90077.0));
+    (void)(g_drawstr(90079.0));
     (void)((v_utfx = DF(std::floor((v_uox + (176.0 * v_usc))))));
     (void)((v_utfy = DF(std::floor((v_uay + (6.0 * v_usc))))));
     (void)((v_utfw = DF(std::floor((116.0 * v_usc)))));
@@ -3016,10 +3052,10 @@ void AlfredCore::sec_gfx()
     (void)(f_urr(v_utfx, v_utfy, v_utfw, v_utfh, (6.0 * v_usc), 0.0));
     (void)(g_setfont(7.0, -1.0, 0.0, 0.0));
     (void)(f_ucol(v_ucmuted, 1.0));
-    (void)(f_utext(90078.0, (v_uox + ((208.0 + 26.0) * v_usc)), (v_uay + (11.0 * v_usc))));
+    (void)(f_utext(90080.0, (v_uox + ((208.0 + 26.0) * v_usc)), (v_uay + (11.0 * v_usc))));
     (void)(f_ucol(v_ucdim, 1.0));
-    (void)(f_utext(90079.0, (v_uox + ((214.0 + (52.0 * 4.0)) * v_usc)), (v_uay + (10.0 * v_usc))));
-    (void)(f_utext(90080.0, (v_uox + ((214.0 + (52.0 * 7.5)) * v_usc)), (v_uay + (10.0 * v_usc))));
+    (void)(f_utext(90081.0, (v_uox + ((214.0 + (52.0 * 4.0)) * v_usc)), (v_uay + (10.0 * v_usc))));
+    (void)(f_utext(90082.0, (v_uox + ((214.0 + (52.0 * 7.5)) * v_usc)), (v_uay + (10.0 * v_usc))));
     (void)(f_ucol(v_ucline, 1.0));
     (void)(g_rect(std::floor((v_uox + ((214.0 + (52.0 * 6.5)) * v_usc))), (v_uay + std::floor((10.0 * v_usc))), 1.0, (v_uah - std::floor((20.0 * v_usc))), 1.0));
     (void)((v_ufi = DF(0.0)));
@@ -3031,7 +3067,7 @@ void AlfredCore::sec_gfx()
       (void)((v_ufdim = DF((T(v_uon) ? 0.0 : 1.0))));
       (void)(g_setfont(7.0, -1.0, 0.0, 0.0));
       (void)(f_ucol(v_ucmuted, (T(v_ufdim) ? 0.5 : 1.0)));
-      (void)(f_utext((T(EQ(v_ufi, 0.0)) ? 90081.0 : (T(EQ(v_ufi, 1.0)) ? 90082.0 : (T(EQ(v_ufi, 2.0)) ? 90083.0 : (T(EQ(v_ufi, 3.0)) ? 90084.0 : (T(EQ(v_ufi, 4.0)) ? 90085.0 : (T(EQ(v_ufi, 5.0)) ? 90086.0 : (T(EQ(v_ufi, 6.0)) ? 90087.0 : (T(EQ(v_ufi, 7.0)) ? 90070.0 : 90088.0)))))))), v_ufx, (v_uay + (26.0 * v_usc))));
+      (void)(f_utext((T(EQ(v_ufi, 0.0)) ? 90083.0 : (T(EQ(v_ufi, 1.0)) ? 90084.0 : (T(EQ(v_ufi, 2.0)) ? 90085.0 : (T(EQ(v_ufi, 3.0)) ? 90086.0 : (T(EQ(v_ufi, 4.0)) ? 90087.0 : (T(EQ(v_ufi, 5.0)) ? 90088.0 : (T(EQ(v_ufi, 6.0)) ? 90089.0 : (T(EQ(v_ufi, 7.0)) ? 90072.0 : 90090.0)))))))), v_ufx, (v_uay + (26.0 * v_usc))));
       (void)(f_ufader(v_ufid, v_ufx, v_ufy, v_ufh, (T(((v_ufid) >= (60.0) ? 1.0 : 0.0)) ? v_ucsig : v_ucamb), (T(v_ufdim) ? 0.4 : 1.0), 0.0));
       if (T(f_uin((v_ufx - (24.0 * v_usc)), (v_uay + (22.0 * v_usc)), (48.0 * v_usc), (102.0 * v_usc)))) {
         (void)((v_uhov = DF(v_ufid)));
@@ -3042,7 +3078,7 @@ void AlfredCore::sec_gfx()
       if (T(EQ(v_uedit, v_ufid))) {
         (void)(f_ucol(v_ucacto, 1.0));
         (void)(f_urr((v_ufx - (23.0 * v_usc)), (v_uay + (127.0 * v_usc)), (46.0 * v_usc), (16.0 * v_usc), (3.0 * v_usc), 0.0));
-        (void)(str_printf(80002.0, 90089.0, {80006.0}));
+        (void)(str_printf(80002.0, 90091.0, {80008.0}));
         (void)(f_ucol(v_uctext, 1.0));
         (void)(f_utext(80002.0, v_ufx, (v_uay + (130.0 * v_usc))));
       } else {
@@ -3068,20 +3104,20 @@ void AlfredCore::sec_gfx()
     (void)((v_uka = DF((T(v_ukdim) ? 0.4 : 1.0))));
     (void)(g_setfont(4.0, -1.0, 0.0, 0.0));
     (void)(f_ucol(v_ukc, v_uka));
-    (void)(f_utext((T(EQ(v_ugi, 0.0)) ? 90080.0 : (T(EQ(v_ugi, 1.0)) ? 90081.0 : 90090.0)), v_ukx, v_uyk));
+    (void)(f_utext((T(EQ(v_ugi, 0.0)) ? 90082.0 : (T(EQ(v_ugi, 1.0)) ? 90083.0 : 90092.0)), v_ukx, v_uyk));
     (void)((v_uky = DF(std::floor((v_uyk + (24.0 * v_usc))))));
     (void)((v_ukh = DF(std::floor((118.0 * v_usc)))));
     (void)(g_setfont(3.0, -1.0, 0.0, 0.0));
     (void)(f_ucol(v_ucdim, 1.0));
     (void)((v_gfx_x = DF((v_ukx - (56.0 * v_usc)))));
     (void)((v_gfx_y = DF((v_uky - (6.0 * v_usc)))));
-    (void)(g_drawstr(90091.0));
+    (void)(g_drawstr(90093.0));
     (void)((v_gfx_x = DF((v_ukx - (48.0 * v_usc)))));
     (void)((v_gfx_y = DF((v_uky + ((v_ukh / 2.0) - (6.0 * v_usc))))));
-    (void)(g_drawstr(90092.0));
+    (void)(g_drawstr(90094.0));
     (void)((v_gfx_x = DF((v_ukx - (54.0 * v_usc)))));
     (void)((v_gfx_y = DF((v_uky + (v_ukh - (6.0 * v_usc))))));
-    (void)(g_drawstr(90093.0));
+    (void)(g_drawstr(90095.0));
     (void)(f_ufader((v_ugi + 1.0), (v_ukx - (10.0 * v_usc)), v_uky, v_ukh, v_ukc, v_uka, 1.0));
     if (T(f_uin((v_ukx - (60.0 * v_usc)), (v_uky - (8.0 * v_usc)), (104.0 * v_usc), (v_ukh + (16.0 * v_usc))))) {
       (void)((v_uhov = DF((1.0 + v_ugi))));
@@ -3102,18 +3138,18 @@ void AlfredCore::sec_gfx()
     if (T(EQ(v_uedit, (v_ugi + 1.0)))) {
       (void)(f_ucol(v_ucacto, 1.0));
       (void)(f_urr((v_ukx - (44.0 * v_usc)), (v_uyk + (146.0 * v_usc)), (88.0 * v_usc), (22.0 * v_usc), (4.0 * v_usc), 0.0));
-      (void)(str_printf(80002.0, 90089.0, {80006.0}));
+      (void)(str_printf(80002.0, 90091.0, {80008.0}));
       (void)(f_ucol(v_uctext, 1.0));
       (void)(f_utext(80002.0, v_ukx, (v_uyk + (150.0 * v_usc))));
     } else {
       if (T(EQ(v_slider19, (v_ugi + 1.0)))) {
-        (void)(str_copy(80002.0, 90094.0));
+        (void)(str_copy(80002.0, 90096.0));
       } else {
         if (T(((v_ukm) >= (0.5) ? 1.0 : 0.0))) {
-          (void)(str_copy(80002.0, 90095.0));
+          (void)(str_copy(80002.0, 90097.0));
         } else {
           if (T(v_uson)) {
-            (void)(str_copy(80002.0, 90096.0));
+            (void)(str_copy(80002.0, 90098.0));
           } else {
             (void)(f_uvalstr((v_ugi + 1.0)));
           }
@@ -3138,7 +3174,7 @@ void AlfredCore::sec_gfx()
       (void)(f_ucol(v_ucmuted, 1.0));
     }
     (void)(g_setfont(6.0, -1.0, 0.0, 0.0));
-    (void)(f_utext(90097.0, (v_ubx + (v_ubs / 2.0)), (v_uby + ((v_ubs / 2.0) - (6.0 * v_usc)))));
+    (void)(f_utext(90099.0, (v_ubx + (v_ubs / 2.0)), (v_uby + ((v_ubs / 2.0) - (6.0 * v_usc)))));
     if (T(f_uin(v_ubx, v_uby, v_ubs, v_ubs))) {
       (void)((v_uhov = DF((4.0 + v_ugi))));
     }
@@ -3152,7 +3188,7 @@ void AlfredCore::sec_gfx()
       (void)(f_urr(v_ubx, v_uby, v_ubs, v_ubs, (5.0 * v_usc), 0.0));
       (void)(f_ucol(v_ucmuted, 1.0));
     }
-    (void)(f_utext(90098.0, (v_ubx + (v_ubs / 2.0)), (v_uby + ((v_ubs / 2.0) - (6.0 * v_usc)))));
+    (void)(f_utext(90100.0, (v_ubx + (v_ubs / 2.0)), (v_uby + ((v_ubs / 2.0) - (6.0 * v_usc)))));
     if (T(f_uin(v_ubx, v_uby, v_ubs, v_ubs))) {
       (void)((v_uhov = DF((7.0 + v_ugi))));
     }
@@ -3198,7 +3234,7 @@ void AlfredCore::sec_gfx()
     (void)((v_uch = DF(g_getchar())));
     for (int _t618 = 1048576; _t618 > 0 && T(((v_uch) > (0.0) ? 1.0 : 0.0)); --_t618) {
       if (T(EQ(v_uch, 13.0))) {
-        if (T(str_match(90099.0, 80006.0, {&v_utyped}))) {
+        if (T(str_match(90101.0, 80008.0, {&v_utyped}))) {
           (void)(f_uset(v_uedit, v_utyped));
           (void)(rt_slider_automate(f_umask(v_uedit), 1.0));
         }
@@ -3208,13 +3244,13 @@ void AlfredCore::sec_gfx()
           (void)((v_uedit = DF(0.0)));
         } else {
           if (T(EQ(v_uch, 8.0))) {
-            if (T(((str_len(80006.0)) > (0.0) ? 1.0 : 0.0))) {
-              (void)(str_copy_substr(80006.0, 80006.0, 0.0, (str_len(80006.0) - 1.0)));
+            if (T(((str_len(80008.0)) > (0.0) ? 1.0 : 0.0))) {
+              (void)(str_copy_substr(80008.0, 80008.0, 0.0, (str_len(80008.0) - 1.0)));
             }
           } else {
             if (T(((T(((T(((T(((T(((v_uch) >= (48.0) ? 1.0 : 0.0)) && T(((v_uch) <= (57.0) ? 1.0 : 0.0))) ? 1.0 : 0.0)) || T(EQ(v_uch, 45.0))) ? 1.0 : 0.0)) || T(EQ(v_uch, 46.0))) ? 1.0 : 0.0)) || T(EQ(v_uch, 44.0))) ? 1.0 : 0.0))) {
-              if (T(((str_len(80006.0)) < (7.0) ? 1.0 : 0.0))) {
-                (void)(str_printf(80006.0, 90100.0, {80006.0, (T(EQ(v_uch, 44.0)) ? 46.0 : v_uch)}));
+              if (T(((str_len(80008.0)) < (7.0) ? 1.0 : 0.0))) {
+                (void)(str_printf(80008.0, 90102.0, {80008.0, (T(EQ(v_uch, 44.0)) ? 46.0 : v_uch)}));
               }
             }
           }
@@ -3223,7 +3259,7 @@ void AlfredCore::sec_gfx()
       (void)((v_uch = DF((T(v_uedit) ? g_getchar() : 0.0))));
     }
     if (T(((T(v_upress) && T(NE(v_uhov, (100.0 + v_uedit)))) ? 1.0 : 0.0))) {
-      if (T(str_match(90099.0, 80006.0, {&v_utyped}))) {
+      if (T(str_match(90101.0, 80008.0, {&v_utyped}))) {
         (void)(f_uset(v_uedit, v_utyped));
         (void)(rt_slider_automate(f_umask(v_uedit), 1.0));
       }
@@ -3370,7 +3406,7 @@ void AlfredCore::sec_gfx()
                                       } else {
                                         if (T(((v_uhov) > (100.0) ? 1.0 : 0.0))) {
                                           (void)((v_uedit = DF((v_uhov - 100.0))));
-                                          (void)(str_copy(80006.0, 90004.0));
+                                          (void)(str_copy(80008.0, 90004.0));
                                         }
                                       }
                                     }
@@ -3417,30 +3453,19 @@ void AlfredCore::sec_gfx()
   (void)(g_rect(v_uox, std::floor((v_uyf + (20.0 * v_usc))), std::floor((680.0 * v_usc)), 1.0, 1.0));
   (void)((v_ufcy = DF(std::floor((v_uyf + (32.0 * v_usc))))));
   (void)(g_setfont(9.0, -1.0, 0.0, 0.0));
-  (void)(str_printf(80007.0, 90101.0, {80003.0}));
-  (void)(g_measurestr(80007.0, &v_ulgw, &v_ulgh));
+  (void)(str_printf(80009.0, 90103.0, {80003.0}));
+  (void)(g_measurestr(80009.0, &v_ulgw, &v_ulgh));
   (void)(f_ucol(v_ucmuted, 1.0));
   (void)((v_gfx_x = DF((v_uox + (16.0 * v_usc)))));
   (void)((v_gfx_y = DF(std::floor((v_ufcy - (v_ulgh / 2.0))))));
-  (void)(g_drawstr(80007.0));
-  if (T(((v_ext_update) >= (0.5) ? 1.0 : 0.0))) {
-    (void)(str_printf(80008.0, 90102.0, {v_ext_upd_a, v_ext_upd_b}));
-    (void)(g_setfont(7.0, -1.0, 0.0, 0.0));
-    (void)(g_measurestr(80008.0, &v_uupw, &v_uuph));
-    (void)((v_uupw = DF(std::floor((v_uupw + (16.0 * v_usc))))));
-    (void)((v_uuph = DF(std::floor((15.0 * v_usc)))));
-    (void)((v_uupx = DF(std::floor((((v_uox + (16.0 * v_usc)) + v_ulgw) + (12.0 * v_usc))))));
-    (void)((v_uupy = DF(std::floor((v_ufcy - (v_uuph / 2.0))))));
-    (void)(f_ubtn(v_uupx, v_uupy, v_uupw, v_uuph, 1.0, EQ(v_uhov, 34.0), 80008.0));
-    (void)(g_setfont(9.0, -1.0, 0.0, 0.0));
-  }
+  (void)(g_drawstr(80009.0));
   (void)((v_gfx_a = DF(1.0)));
   (void)(f_ucol(v_ucmuted, 1.0));
-  (void)(g_measurestr(90103.0, &v_ulgw, &v_ulgh));
+  (void)(g_measurestr(90104.0, &v_ulgw, &v_ulgh));
   (void)((v_ulmw = DF((T(((v_usc) >= (1.5) ? 1.0 : 0.0)) ? v_lgw2 : v_lgw1))));
   (void)((v_gfx_x = DF(std::floor((v_uox + ((((664.0 * v_usc) - v_ulmw) - (6.0 * v_usc)) - v_ulgw))))));
   (void)((v_gfx_y = DF(std::floor((v_ufcy - (v_ulgh / 2.0))))));
-  (void)(g_drawstr(90103.0));
+  (void)(g_drawstr(90104.0));
   (void)(f_ucol(v_ucmuted, 1.0));
   (void)(f_ulogo(std::floor((v_uox + (664.0 * v_usc))), v_ufcy));
   (void)((v_gfx_a = DF(1.0)));
@@ -3449,49 +3474,49 @@ void AlfredCore::sec_gfx()
   (void)((v_gfx_x = DF((v_uox + (16.0 * v_usc)))));
   (void)((v_gfx_y = DF(std::floor(v_uyf))));
   if (T(EQ(v_uhov, 1.0))) {
-    (void)(g_drawstr(90104.0));
+    (void)(g_drawstr(90105.0));
   } else {
     if (T(EQ(v_uhov, 2.0))) {
-      (void)(g_drawstr((T(((v_slider20) >= (0.5) ? 1.0 : 0.0)) ? 90105.0 : 90106.0)));
+      (void)(g_drawstr((T(((v_slider20) >= (0.5) ? 1.0 : 0.0)) ? 90106.0 : 90107.0)));
     } else {
       if (T(EQ(v_uhov, 3.0))) {
-        (void)(g_drawstr(90107.0));
+        (void)(g_drawstr(90108.0));
       } else {
         if (T(((T(((v_uhov) >= (4.0) ? 1.0 : 0.0)) && T(((v_uhov) <= (6.0) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
-          (void)(g_drawstr(90108.0));
+          (void)(g_drawstr(90109.0));
         } else {
           if (T(((T(((v_uhov) >= (7.0) ? 1.0 : 0.0)) && T(((v_uhov) <= (9.0) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
-            (void)(g_drawstr(90109.0));
+            (void)(g_drawstr(90110.0));
           } else {
             if (T(((T(((v_uhov) >= (10.0) ? 1.0 : 0.0)) && T(((v_uhov) <= (12.0) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
-              (void)(g_drawstr(90110.0));
+              (void)(g_drawstr(90111.0));
             } else {
               if (T(EQ(v_uhov, 20.0))) {
-                (void)(g_drawstr(90111.0));
+                (void)(g_drawstr(90112.0));
               } else {
                 if (T(EQ(v_uhov, 21.0))) {
-                  (void)(g_drawstr(90112.0));
+                  (void)(g_drawstr(90113.0));
                 } else {
                   if (T(EQ(v_uhov, 22.0))) {
-                    (void)(g_drawstr((T(EQ(v_pmode, 1.0)) ? 90113.0 : 90114.0)));
+                    (void)(g_drawstr((T(EQ(v_pmode, 1.0)) ? 90114.0 : 90115.0)));
                   } else {
                     if (T(EQ(v_uhov, 23.0))) {
-                      (void)(g_drawstr(90115.0));
+                      (void)(g_drawstr(90116.0));
                     } else {
                       if (T(EQ(v_uhov, 24.0))) {
-                        (void)(g_drawstr(90116.0));
+                        (void)(g_drawstr(90117.0));
                       } else {
                         if (T(EQ(v_uhov, 26.0))) {
-                          (void)(g_drawstr(90117.0));
+                          (void)(g_drawstr(90118.0));
                         } else {
                           if (T(EQ(v_uhov, 27.0))) {
-                            (void)(g_drawstr((T(v_udark) ? 90118.0 : 90119.0)));
+                            (void)(g_drawstr((T(v_udark) ? 90119.0 : 90120.0)));
                           } else {
                             if (T(EQ(v_uhov, 30.0))) {
-                              (void)(g_drawstr((T(v_uana) ? 90120.0 : 90121.0)));
+                              (void)(g_drawstr((T(v_uana) ? 90121.0 : 90122.0)));
                             } else {
                               if (T(EQ(v_uhov, 34.0))) {
-                                (void)(g_drawstr(90122.0));
+                                (void)(g_drawstr(80005.0));
                               } else {
                                 if (T(EQ(v_uhov, 35.0))) {
                                   (void)(g_drawstr((T(((v_ext_enh_load) >= (0.5) ? 1.0 : 0.0)) ? 90123.0 : (T(((v_ext_enh_on) < (0.5) ? 1.0 : 0.0)) ? 90124.0 : (T(((v_slider25) < (1.5) ? 1.0 : 0.0)) ? 90125.0 : 90126.0)))));
@@ -3549,10 +3574,10 @@ void AlfredCore::sec_gfx()
                                                                     (void)((v_gfx_g = DF(0.27)));
                                                                     (void)((v_gfx_b = DF(0.27)));
                                                                     (void)((v_gfx_a = DF(1.0)));
-                                                                    (void)(g_drawstr(80004.0));
+                                                                    (void)(g_drawstr(80006.0));
                                                                   } else {
                                                                     if (T(((T(((v_ext_enh_on) >= (0.5) ? 1.0 : 0.0)) && T(((v_slider17) >= (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
-                                                                      (void)(g_drawstr(80005.0));
+                                                                      (void)(g_drawstr(80007.0));
                                                                     } else {
                                                                       if (T(EQ(v_pmode, 2.0))) {
                                                                         (void)(g_drawstr(90148.0));

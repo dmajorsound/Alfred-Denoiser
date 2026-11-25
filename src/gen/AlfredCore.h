@@ -433,6 +433,11 @@ public:
   double v_uty1 = 0.0;
   double v_uty2 = 0.0;
   double v_utyped = 0.0;
+  double v_uudr = 0.0;
+  double v_uudx = 0.0;
+  double v_uudy = 0.0;
+  double v_uunh = 0.0;
+  double v_uunw = 0.0;
   double v_uuph = 0.0;
   double v_uupw = 0.0;
   double v_uupx = 0.0;

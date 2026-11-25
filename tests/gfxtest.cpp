@@ -68,6 +68,12 @@ int main(int argc, char** argv)
             juce::File f(fn); f.deleteFile();
             juce::FileOutputStream os(f); juce::PNGImageFormat png; png.writeImageToStream(img, os);
         }
+        else if (c == "g")      // print one variable: g name
+        {
+            std::string nm; in >> nm;
+            double* v = core.var(nm.c_str());
+            std::printf("%s = %g\n", nm.c_str(), v ? *v : -1.0);
+        }
         else if (c == "p")
         {
             std::string lab; std::getline(in, lab);
