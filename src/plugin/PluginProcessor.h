@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "AlfredCore.h"
+#include "../neural/VoiceFront.h"
 #include <array>
 #include <atomic>
 
@@ -67,6 +68,18 @@ private:
     juce::AudioParameterBool* bypassParam = nullptr;
     double* vSrate = nullptr; double* vBlock = nullptr; double* vPlay = nullptr; double* vPdc = nullptr;
     double* vSpl0 = nullptr; double* vSpl1 = nullptr; double* vPower = nullptr;
+    // ---- neural voice engine (48 kHz, Voice mode). It splits the input into the voice and the rest; the voice
+    // goes through the classic engine, the rest comes back in at the level of the Noise fader.
+    void loadNeural();
+    int neuralLatency() const { return neural ? NeuralVoice::kLatency : 0; }
+    NeuralRuntime neuralRuntime;
+    std::unique_ptr<NeuralVoice> neural;
+    bool neuralTried = false;
+    double* vGa = nullptr; double* vDelta = nullptr; double* vMode = nullptr; double* vEngine = nullptr; double* vExtNeural = nullptr;
+    std::unique_ptr<VoiceFront> front;
+    std::vector<float> nIn[2];
+    std::vector<double> nCore[2];
+
     std::atomic<int> pendingLatency { -1 };
     int reportedLatency = -1;
     bool initDone = false;

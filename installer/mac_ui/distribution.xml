@@ -14,8 +14,10 @@
         <pkg-ref id="com.dmajorsound.alfred.vst3"/>
         <pkg-ref id="com.dmajorsound.alfred.au"/>
         <pkg-ref id="com.dmajorsound.alfred.clap"/>
+        <pkg-ref id="com.dmajorsound.alfred.support"/>
     </choice>
     <pkg-ref id="com.dmajorsound.alfred.vst3" version="VERSION" onConclusion="none">alfred-vst3.pkg</pkg-ref>
     <pkg-ref id="com.dmajorsound.alfred.au" version="VERSION" onConclusion="none">alfred-au.pkg</pkg-ref>
     <pkg-ref id="com.dmajorsound.alfred.clap" version="VERSION" onConclusion="none">alfred-clap.pkg</pkg-ref>
+    <pkg-ref id="com.dmajorsound.alfred.support" version="VERSION" onConclusion="none">alfred-support.pkg</pkg-ref>
 </installer-gui-script>

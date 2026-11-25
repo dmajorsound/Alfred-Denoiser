@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Alfred VERSION 0.30.0 LANGUAGES C CXX)
+project(Alfred VERSION 0.31.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -50,6 +50,7 @@ target_sources(Alfred PRIVATE
     src/plugin/PluginProcessor.cpp
     src/plugin/PluginEditor.cpp
     src/plugin/JuceGfx.cpp
+    src/neural/NeuralVoice.cpp
     src/core/JsfxRuntime.cpp
     src/core/fft.c
     src/gen/AlfredCore.cpp)

@@ -1,9 +1,9 @@
 ; Alfred installer for Windows (Inno Setup 6). The version comes from the build: ISCC /DAppVer=0.27 /DFileVer=0.27_beta
 #ifndef AppVer
-  #define AppVer "0.30 beta"
+  #define AppVer "0.31 beta"
 #endif
 #ifndef FileVer
-  #define FileVer "0.30_beta"
+  #define FileVer "0.31_beta"
 #endif
 
 [Setup]
@@ -32,6 +32,8 @@ DisableWelcomePage=no
 [Files]
 Source: "..\..\build\Alfred_artefacts\Release\VST3\Alfred.vst3\*"; DestDir: "{commoncf64}\VST3\Alfred.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\build\Alfred_artefacts\Release\CLAP\Alfred.clap"; DestDir: "{commoncf64}\CLAP"; Flags: ignoreversion
+; neural voice engine: ONNX Runtime and the model, shared by both plug-in formats
+Source: "..\..\support\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; Flags: ignoreversion
 
 [Messages]
 WelcomeLabel1=Alfred%nA simple Denoiser at your Service

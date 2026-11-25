@@ -16,9 +16,10 @@ on:
         default: ""
 
 env:
-  VERSION: "0.30 beta"        # shown in the installers
-  FILEVER: "0.30_beta"        # used in the file names
-  PKGVER: "0.30.0"            # numeric version for the macOS package receipts
+  VERSION: "0.31 beta"        # shown in the installers
+  FILEVER: "0.31_beta"        # used in the file names
+  PKGVER: "0.31.0"
+  ORTVER: "1.23.1"            # ONNX Runtime release that runs the neural voice engine            # numeric version for the macOS package receipts
 
 jobs:
   check-translation:
@@ -53,6 +54,19 @@ jobs:
             codesign --force --deep -s - "$p"
           done
           du -sh out/*
+      - name: Neural voice engine files (ONNX Runtime + model)
+        run: |
+          curl -L --fail -o ort.tgz "https://github.com/microsoft/onnxruntime/releases/download/v${ORTVER}/onnxruntime-osx-universal2-${ORTVER}.tgz"
+          tar xzf ort.tgz
+          mkdir -p support
+          cp -L "onnxruntime-osx-universal2-${ORTVER}/lib/libonnxruntime.dylib" support/libonnxruntime.dylib
+          cp resources/models/dpdfnet2_48khz_hr.onnx resources/models/THIRD-PARTY-NOTICES.txt resources/models/DPDFNet-LICENSE-Apache-2.0.txt support/
+          lipo -info support/libonnxruntime.dylib
+          codesign --force -s - support/libonnxruntime.dylib
+          # installed here too, so the Audio Unit check below runs with the neural engine
+          sudo mkdir -p "/Library/Application Support/dmajorsound/Alfred"
+          sudo cp support/* "/Library/Application Support/dmajorsound/Alfred/"
+          ls -la "/Library/Application Support/dmajorsound/Alfred/"
       - name: Validate the Audio Unit
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
@@ -71,6 +85,8 @@ jobs:
           mk Alfred.vst3 vst3 /Library/Audio/Plug-Ins/VST3
           mk Alfred.component au /Library/Audio/Plug-Ins/Components
           mk Alfred.clap clap /Library/Audio/Plug-Ins/CLAP
+          pkgbuild --root support --install-location "/Library/Application Support/dmajorsound/Alfred" \
+            --identifier com.dmajorsound.alfred.support --version "$PKGVER" alfred-support.pkg
           mkdir -p ui
           cp installer/mac_ui/welcome.html installer/mac_ui/logo.png installer/mac_ui/logo-dark.png ui/
           tiffutil -cathidpicheck installer/mac_ui/background.png installer/mac_ui/background@2x.png -out ui/background.tiff
@@ -97,6 +113,13 @@ jobs:
         run: |
           Get-ChildItem build\Alfred_artefacts\Release\CLAP, build\Alfred_artefacts\Release\VST3
           if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+          # neural voice engine files: ONNX Runtime + model
+          Invoke-WebRequest -Uri "https://github.com/microsoft/onnxruntime/releases/download/v$env:ORTVER/onnxruntime-win-x64-$env:ORTVER.zip" -OutFile ort.zip
+          Expand-Archive ort.zip -DestinationPath ort
+          New-Item -ItemType Directory -Force support | Out-Null
+          Copy-Item "ort\onnxruntime-win-x64-$env:ORTVER\lib\onnxruntime.dll" support\
+          Copy-Item resources\models\dpdfnet2_48khz_hr.onnx, resources\models\THIRD-PARTY-NOTICES.txt, resources\models\DPDFNet-LICENSE-Apache-2.0.txt support\
+          Get-ChildItem support
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVer=$env:VERSION" "/DFileVer=$env:FILEVER" installer\win\alfred.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4

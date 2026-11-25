@@ -83,6 +83,7 @@ public:
   double v_enlr = 0.0;
   double v_ent = 0.0;
   double v_ewid = 0.0;
+  double v_ext_neural = 0.0;
   double v_ext_noinit = 0.0;
   double v_fcount = 0.0;
   double v_fl = 0.0;
@@ -226,6 +227,7 @@ public:
   double v_slider21 = 0.0;
   double v_slider22 = 0.0;
   double v_slider23 = 0.0;
+  double v_slider24 = 0.0;
   double v_slider3 = 0.0;
   double v_slider4 = 0.0;
   double v_slider5 = 0.0;
@@ -363,6 +365,11 @@ public:
   double v_umx = 0.0;
   double v_umx1 = 0.0;
   double v_umx2 = 0.0;
+  double v_unbh = 0.0;
+  double v_unbw = 0.0;
+  double v_unbx = 0.0;
+  double v_unby = 0.0;
+  double v_unon = 0.0;
   double v_unorm = 0.0;
   double v_unow = 0.0;
   double v_uon = 0.0;

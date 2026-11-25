@@ -60,6 +60,7 @@ int main(int argc, char** argv)
         else if (c == "s") { *mc = (double)((int)*mc | 8); }
         else if (c == "S") { *mc = (double)((int)*mc & ~8); }
         else if (c == "k") { int k; in >> k; gfx.keys.push_back(k); }
+        else if (c == "v") { std::string nm; double val; in >> nm >> val; if (double* p = core.var(nm.c_str())) *p = val; }
         else if (c == "f") { int n; in >> n; for (int i = 0; i < n; ++i) frame(); }
         else if (c == "w")
         {

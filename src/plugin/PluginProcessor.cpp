@@ -47,6 +47,9 @@ AlfredProcessor::AlfredProcessor()
 
     vSrate = core.var("srate"); vBlock = core.var("samplesblock"); vPlay = core.var("play_state");
     vPdc = core.var("pdc_delay"); vSpl0 = core.var("spl0"); vSpl1 = core.var("spl1"); vPower = core.var("slider4");
+    vGa = core.var("ga"); vDelta = core.var("slider19"); vMode = core.var("slider20"); vEngine = core.var("slider24");
+    vExtNeural = core.var("ext_neural");
+    if (vExtNeural) *vExtNeural = 2.0;      // the interface shows the engine switch; "not available" until it is loaded
 
     // @init at a default rate; the real rate arrives with prepareToPlay (the script follows srate in @block)
     *vSrate = 48000.0;
@@ -56,7 +59,7 @@ AlfredProcessor::AlfredProcessor()
     initDone = true;
     core.sliderListener = this;
     setLatencySamples((int)*vPdc);
-    reportedLatency = (int)*vPdc;
+    reportedLatency = (int)*vPdc;      // the neural engine adds its own latency once it is loaded (prepareToPlay)
 }
 
 AlfredProcessor::~AlfredProcessor()
@@ -72,14 +75,60 @@ bool AlfredProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
     return out == juce::AudioChannelSet::stereo() || out == juce::AudioChannelSet::mono();
 }
 
+// The neural engine's two files are installed once for all plug-in formats:
+//   macOS    /Library/Application Support/dmajorsound/Alfred
+//   Windows  C:\ProgramData\dmajorsound\Alfred
+// (or the folder named by the environment variable ALFRED_NEURAL_DIR). Without them Alfred runs its classic engine.
+void AlfredProcessor::loadNeural()
+{
+    if (neuralTried) return;
+    neuralTried = true;
+    juce::Array<juce::File> dirs;
+    const juce::String env = juce::SystemStats::getEnvironmentVariable("ALFRED_NEURAL_DIR", {});
+    if (env.isNotEmpty()) dirs.add(juce::File(env));
+    const juce::File common = juce::File::getSpecialLocation(juce::File::commonApplicationDataDirectory);
+    const juce::File user = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory);
+   #if JUCE_MAC
+    dirs.add(common.getChildFile("Application Support/dmajorsound/Alfred"));
+    dirs.add(user.getChildFile("Application Support/dmajorsound/Alfred"));
+    const char* libName = "libonnxruntime.dylib";
+   #elif JUCE_WINDOWS
+    dirs.add(common.getChildFile("dmajorsound/Alfred"));
+    dirs.add(user.getChildFile("dmajorsound/Alfred"));
+    const char* libName = "onnxruntime.dll";
+   #else
+    dirs.add(common.getChildFile("dmajorsound/Alfred"));
+    dirs.add(user.getChildFile("dmajorsound/Alfred"));
+    const char* libName = "libonnxruntime.so";
+   #endif
+    for (const auto& d : dirs)
+    {
+        const juce::File lib = d.getChildFile(libName), model = d.getChildFile("dpdfnet2_48khz_hr.onnx");
+        if (!lib.existsAsFile() || !model.existsAsFile()) continue;
+        std::string error;
+        if (neuralRuntime.load(lib.getFullPathName().toStdString(), model.getFullPathName().toStdString(), error))
+        {
+            neural = std::make_unique<NeuralVoice>(neuralRuntime);
+            break;
+        }
+    }
+}
+
 void AlfredProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    loadNeural();       // before the lock: loading the model takes a moment
     const juce::SpinLock::ScopedLockType lock(stateLock);
     *vSrate = sampleRate;
     if (vBlock) *vBlock = samplesPerBlock;
     syncParamsToSliders();
     core.sec_block();                       // runs setup() for the new rate, which sets pdc_delay
-    const int lat = (int)*vPdc;
+    if (neural)
+    {
+        if (!front) front = std::make_unique<VoiceFront>(*neural);
+        front->prepare(sampleRate, juce::jmin(2, juce::jmax(1, getTotalNumInputChannels())), samplesPerBlock);
+        for (int c = 0; c < 2; ++c) { nIn[c].assign((size_t)front->capacity(), 0.0f); nCore[c].assign((size_t)front->capacity(), 0.0); }
+    }
+    const int lat = (int)*vPdc + neuralLatency();
     if (lat != reportedLatency) { reportedLatency = lat; setLatencySamples(lat); }
 }
 
@@ -155,23 +204,55 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
             if (auto pos = ph->getPosition()) playing = pos->getIsPlaying();
         *vPlay = playing ? 1.0 : 0.0;
     }
+    const bool neuralUsable = neural != nullptr && std::abs(*vSrate - 48000.0) < 1.0;
+    if (vExtNeural) *vExtNeural = neuralUsable ? 1.0 : 2.0;
     core.sec_block();
 
     T* l = buffer.getWritePointer(0);
     T* r = nch > 1 ? buffer.getWritePointer(1) : nullptr;
-    for (int i = 0; i < n; ++i)
+    if (neural == nullptr || front == nullptr)
     {
-        *vSpl0 = (double)l[i];
-        *vSpl1 = r ? (double)r[i] : (double)l[i];
-        core.sec_sample();
-        l[i] = (T)*vSpl0;
-        if (r) r[i] = (T)*vSpl1;
+        for (int i = 0; i < n; ++i)
+        {
+            *vSpl0 = (double)l[i];
+            *vSpl1 = r ? (double)r[i] : (double)l[i];
+            core.sec_sample();
+            l[i] = (T)*vSpl0;
+            if (r) r[i] = (T)*vSpl1;
+        }
+    }
+    else
+    {
+        // ---- with the neural voice engine in front: the network's voice goes through the classic engine, and what
+        // the network took away comes back at the level of the Noise fader
+        const bool want = neuralUsable && *vPower >= 0.5 && (vMode == nullptr || *vMode < 0.5) && (vEngine == nullptr || *vEngine >= 0.5);
+        double levelHi, levelLo;
+        VoiceFront::levels(vGa ? *vGa : 1.0, vDelta ? (int)(*vDelta + 0.5) : 0, *vPower >= 0.5, levelHi, levelLo);
+        const int cap = front->capacity();
+        for (int start = 0; start < n; start += cap)
+        {
+            const int len = juce::jmin(cap, n - start);
+            for (int i = 0; i < len; ++i) { nIn[0][(size_t)i] = (float)l[start + i]; if (r) nIn[1][(size_t)i] = (float)r[start + i]; }
+            const float* ip[2] = { nIn[0].data(), nIn[1].data() };
+            double* cp[2] = { nCore[0].data(), nCore[1].data() };
+            front->pre(ip, cp, len, want);
+            for (int i = 0; i < len; ++i)
+            {
+                *vSpl0 = cp[0][i];
+                *vSpl1 = r ? cp[1][i] : cp[0][i];
+                core.sec_sample();
+                cp[0][i] = *vSpl0;
+                if (r) cp[1][i] = *vSpl1;
+            }
+            front->post(cp, len, levelHi, levelLo, (int)*vPdc);
+            for (int i = 0; i < len; ++i) { l[start + i] = (T)cp[0][i]; if (r) r[start + i] = (T)cp[1][i]; }
+        }
     }
     for (int ch = nch; ch < buffer.getNumChannels(); ++ch) buffer.clear(ch, 0, n);
 
     if (hostBypass) *vPower = powerSave;
 
-    const int lat = (int)*vPdc;
+    const int lat = (int)*vPdc + neuralLatency();
     if (lat != reportedLatency) { reportedLatency = lat; pendingLatency = lat; triggerAsyncUpdate(); }
 }
 

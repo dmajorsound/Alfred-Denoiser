@@ -13,6 +13,7 @@ Built as VST3, AU (macOS) and CLAP.
 | `tools/eel2cpp.py` | Translates the JSFX into C++ with the exact arithmetic of REAPER's EEL2. |
 | `src/gen/` | The translated code. Generated, never edited by hand. |
 | `src/core/` | Runtime for the translated code (memory, FFT from WDL, strings, project state). |
+| `src/neural/` | Neural voice engine: DPDFNet through ONNX Runtime, in front of the classic engine (plug-in only, 48 kHz, Voice mode). |
 | `src/plugin/` | JUCE plug-in: parameters, latency, state, and the interface drawn with JUCE. |
 | `tests/` | Null test against the JSFX and a headless interface test. |
 
@@ -32,4 +33,5 @@ cmake --build build --config Release
 - [JUCE](https://juce.com) (fetched at build time)
 - [clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions) (fetched at build time)
 - Liberation Sans fonts (`resources/fonts/`), built into the plug-in so text looks the same on every system: SIL Open Font License 1.1, see `resources/fonts/LICENSE-OFL.txt`.
+- DPDFNet model `resources/models/dpdfnet2_48khz_hr.onnx` (Ceva, Apache-2.0) and ONNX Runtime (Microsoft, MIT; header in `src/neural/ort/`, library downloaded at build time): see `resources/models/THIRD-PARTY-NOTICES.txt`.
 - `src/core/fft.c`, `src/core/fft.h`: WDL FFT, Copyright (C) 2006 and later Cockos Incorporated, based on DJBFFT — see the license in the file headers.
