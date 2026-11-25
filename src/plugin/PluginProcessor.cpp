@@ -203,6 +203,10 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
         if (auto* ph = getPlayHead())
             if (auto pos = ph->getPosition()) playing = pos->getIsPlaying();
         *vPlay = playing ? 1.0 : 0.0;
+        // playback starts: the neural engine forgets what it heard before, as the classic engine does in its
+        // @block, so a render always begins from the same state
+        if (playing && !wasPlaying && front) front->reset();
+        wasPlaying = playing;
     }
     const bool neuralUsable = neural != nullptr && std::abs(*vSrate - 48000.0) < 1.0;
     if (vExtNeural) *vExtNeural = neuralUsable ? 1.0 : 2.0;

@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.31 beta
+//version: 0.32 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -39,7 +39,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.31 beta";
+#verstr = "0.32 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -651,6 +651,20 @@ function clear_audio()
   hopc = 0; fsil = 0; ons = 0;
 );
 
+// Playback starts: everything the plug-in has picked up by listening (noise floor, room, voice, tone) is forgotten,
+// so the same audio played or rendered from the same place always gives exactly the same result. Only what the user
+// set on purpose stays: the learned noise print.
+function fresh_start() local(st, pm, ok)
+(
+  st = 31*65536;                 // scratch space above everything setup() uses
+  pm = pmode; ok = pst_ok;
+  memcpy(st, prof, nb); memcpy(st+nb, pst, nb);
+  setup();
+  memcpy(prof, st, nb); memcpy(pst, st+nb, nb);
+  pmode = pm; pst_ok = ok;
+  need_build = 1; pjob = 0;
+);
+
 // everything the audio side derives from the sliders. Only ever called from the audio side.
 function update_params() local(so, key, dl)
 (
@@ -786,7 +800,7 @@ ana = slider22 >= 0.5 && slider23 >= 0.5;
 srate != last_srate ? setup();
 serve_requests();
 update_params();
-(play_state & 1) && !last_play ? clear_audio();
+(play_state & 1) && !last_play ? fresh_start();
 last_play = play_state & 1;
 
 @sample

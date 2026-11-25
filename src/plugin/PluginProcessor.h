@@ -75,6 +75,7 @@ private:
     NeuralRuntime neuralRuntime;
     std::unique_ptr<NeuralVoice> neural;
     bool neuralTried = false;
+    bool wasPlaying = false;
     double* vGa = nullptr; double* vDelta = nullptr; double* vMode = nullptr; double* vEngine = nullptr; double* vExtNeural = nullptr;
     std::unique_ptr<VoiceFront> front;
     std::vector<float> nIn[2];

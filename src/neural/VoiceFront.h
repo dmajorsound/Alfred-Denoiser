@@ -5,6 +5,7 @@
 //           delayed by the classic engine's latency so both line up
 // Below 350 Hz the rest is turned down more gently than above, which keeps the lows of a voice full.
 #include "NeuralVoice.h"
+#include <algorithm>
 #include <cmath>
 #include <vector>
 
@@ -31,6 +32,18 @@ public:
     }
 
     int capacity() const { return cap; }
+
+    // back to the state right after prepare(): called when playback starts, so every render begins the same way
+    void reset()
+    {
+        nv.reset();
+        for (int c = 0; c < 2; ++c)
+        {
+            std::fill(ch[c].lo.begin(), ch[c].lo.end(), 0.0f); std::fill(ch[c].hi.begin(), ch[c].hi.end(), 0.0f);
+            ch[c].pos = 0; ch[c].z1 = ch[c].z2 = 0;
+        }
+        mixOn = 0; gHi = 1; gLo = 1;
+    }
 
     // Levels for the rest, from the classic engine's own noise gain (which already knows solo, mute and delta).
     static void levels(double noiseGain, int delta, bool powerOn, double& hi, double& lo)

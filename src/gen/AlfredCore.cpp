@@ -42,7 +42,7 @@ AlfredCore::AlfredCore()
   str_define(90003, "+");
   str_define(90004, "");
   str_define(90005, "%s%.1f dB");
-  str_define(90006, "0.31 beta");
+  str_define(90006, "0.32 beta");
   str_define(90007, "0000007ffffeefffffdfd810");
   str_define(90008, "0000008ffff84ffffc1fffe3");
   str_define(90009, "0000008ffff84ffffb0ffffc");
@@ -1938,6 +1938,22 @@ double AlfredCore::f_clear_audio()
   return (v_ons = DF(0.0));
 }
 
+double AlfredCore::f_fresh_start()
+{
+  (void)((l_fresh_start_st = DF((31.0 * 65536.0))));
+  (void)((l_fresh_start_pm = DF(v_pmode)));
+  (void)((l_fresh_start_ok = DF(v_pst_ok)));
+  (void)(rt_memcpy(l_fresh_start_st, v_prof, v_nb));
+  (void)(rt_memcpy((l_fresh_start_st + v_nb), v_pst, v_nb));
+  (void)(f_setup());
+  (void)(rt_memcpy(v_prof, l_fresh_start_st, v_nb));
+  (void)(rt_memcpy(v_pst, (l_fresh_start_st + v_nb), v_nb));
+  (void)((v_pmode = DF(l_fresh_start_pm)));
+  (void)((v_pst_ok = DF(l_fresh_start_ok)));
+  (void)((v_need_build = DF(1.0)));
+  return (v_pjob = DF(0.0));
+}
+
 double AlfredCore::f_update_params()
 {
   (void)((l_update_params_so = DF(v_slider5)));
@@ -2551,7 +2567,7 @@ void AlfredCore::sec_block()
   (void)(f_serve_requests());
   (void)(f_update_params());
   if (T(((T(BAND(v_play_state, 1.0)) && T((T(v_last_play) ? 0.0 : 1.0))) ? 1.0 : 0.0))) {
-    (void)(f_clear_audio());
+    (void)(f_fresh_start());
   }
   (void)((v_last_play = DF(BAND(v_play_state, 1.0))));
 }

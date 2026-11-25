@@ -586,6 +586,9 @@ public:
   double l_frame_xi = 0.0;
   double l_frame_zg = 0.0;
   double l_frame_zl = 0.0;
+  double l_fresh_start_ok = 0.0;
+  double l_fresh_start_pm = 0.0;
+  double l_fresh_start_st = 0.0;
   double l_ldec_c = 0.0;
   double l_ldec_dst = 0.0;
   double l_ldec_i = 0.0;
@@ -813,6 +816,7 @@ private:
   double f_ldec(double str_, double dst_, double n_);
   double f_setup();
   double f_clear_audio();
+  double f_fresh_start();
   double f_update_params();
   double f_serve_requests();
   double f_ucol(double c_, double al_);
