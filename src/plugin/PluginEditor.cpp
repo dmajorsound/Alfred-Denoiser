@@ -11,7 +11,8 @@ AlfredEditor::AlfredEditor(AlfredProcessor& p) : AudioProcessorEditor(&p), proc(
     setWantsKeyboardFocus(true);
     setOpaque(true);
     setResizable(true, true);
-    setResizeLimits(400, 300, 2400, 2400);
+    setResizeLimits(400, 200, 2400, 2400);
+    wantKey = proc.core.var("uwantk"); wantH = proc.core.var("uwanth");
     setSize(AlfredCore::gfxWidth(), AlfredCore::gfxHeight());
     startTimerHz(30);
 }
@@ -108,6 +109,16 @@ void AlfredEditor::timerCallback()
     gfx.begin(frame);
     proc.core.sec_gfx();
     gfx.end();
+
+    // the script says how tall its layout wants to be (spectrum folded or open, Basic or Expert tab);
+    // when that changes, the window takes that height at its current width
+    if (wantKey && wantH && *wantKey != lastWantKey && *wantH > 0)
+    {
+        lastWantKey = *wantKey;
+        const int w = getWidth();
+        const int h = juce::jlimit(200, 2400, juce::roundToInt(*wantH * (double)w / 664.0));
+        if (h != getHeight()) { setSize(w, h); return; }
+    }
 
     // Only what changed since the last frame goes to the screen: the new frame is compared with the one that is
     // showing, row by row. A still picture costs no repaint at all, moving meters only their own area.

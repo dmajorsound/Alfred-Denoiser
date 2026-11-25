@@ -225,6 +225,7 @@ public:
   double v_slider20 = 0.0;
   double v_slider21 = 0.0;
   double v_slider22 = 0.0;
+  double v_slider23 = 0.0;
   double v_slider3 = 0.0;
   double v_slider4 = 0.0;
   double v_slider5 = 0.0;
@@ -310,6 +311,12 @@ public:
   double v_uey2 = 0.0;
   double v_ueyp = 0.0;
   double v_ufb0 = 0.0;
+  double v_ufbh = 0.0;
+  double v_ufbt = 0.0;
+  double v_ufbw = 0.0;
+  double v_ufby = 0.0;
+  double v_ufcc = 0.0;
+  double v_ufcx = 0.0;
   double v_ufcy = 0.0;
   double v_ufdim = 0.0;
   double v_ufh = 0.0;
@@ -319,6 +326,7 @@ public:
   double v_uflog = 0.0;
   double v_ufmax = 0.0;
   double v_ufmin = 0.0;
+  double v_ufold = 0.0;
   double v_ufx = 0.0;
   double v_ufy = 0.0;
   double v_ugf = 0.0;
@@ -405,6 +413,8 @@ public:
   double v_uvw2 = 0.0;
   double v_uvx = 0.0;
   double v_uvx2 = 0.0;
+  double v_uwanth = 0.0;
+  double v_uwantk = 0.0;
   double v_uyf = 0.0;
   double v_uyk = 0.0;
   double v_vact = 0.0;

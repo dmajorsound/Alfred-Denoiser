@@ -30,6 +30,7 @@ private:
     JuceGfx gfx;
     juce::Image frame;      // the frame being drawn
     juce::Image shown;      // the frame that is on screen
+    double* wantKey = nullptr; double* wantH = nullptr; double lastWantKey = 0;   // layout height asked for by the script
     double* mx; double* my; double* mcap; double* mwheel;
     double* gw; double* gh; double* gretina;
     int buttons = 0;

@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.29 beta
+//version: 0.30 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -27,7 +27,8 @@ slider18:0<0,1,1{Dark,Light}>-Theme
 slider19:0<0,3,1{None,Signal,Noise,Reverb}>-Delta
 slider20:0<0,1,1{Voice,SFX}>-Mode
 slider21:50<0,100,0.1>-Preserve Transients (%)
-slider22:1<0,1,1{Off,On}>-Analyzer
+slider22:0<0,1,1{Off,On}>-Analyzer
+slider23:0<0,1,1{Folded,Open}>-Spectrum
 
 in_pin:Left
 in_pin:Right
@@ -37,7 +38,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.29 beta";
+#verstr = "0.30 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -780,7 +781,7 @@ file_avail(0) >= 0 ? ( pmode = (ser_n == NL && ser_mode == 2) ? 2 : 0; need_buil
 
 @block
 // the analyzer averages its spectra only while it is switched on (saves work when it is off)
-ana = slider22 >= 0.5;
+ana = slider22 >= 0.5 && slider23 >= 0.5;
 srate != last_srate ? setup();
 serve_requests();
 update_params();
@@ -798,7 +799,7 @@ bp += (bpt-bp)*bpc;
 spl0 = d0 + (w0-d0)*bp;
 spl1 = d1 + (w1-d1)*bp;
 
-@gfx 664 652
+@gfx 664 505
 // Everything below runs on the interface side. It shares no function with the audio side
 // and only talks to it through the sliders and the two requests (learn, clear).
 function ucol(c, al) ( gfx_r = floor(c/65536)/255; gfx_g = (floor(c/256)%256)/255; gfx_b = (c%256)/255; gfx_a = al; );
@@ -952,9 +953,14 @@ udark ? (
 );
 
 uadv = slider9 >= 0.5;
-ufix = uadv ? 491 : 327;
-usc = max(0.5, min(gfx_w/664, gfx_h/(ufix+110)));
-ushb = max(110, gfx_h/usc - ufix);
+// the spectrum is folded away by default: a slim bar stands in its place, and the window holds only the controls
+ufold = slider23 < 0.5;
+ufix = (uadv ? 491 : 327) + (ufold ? 14 : 22);
+usc = max(0.5, min(gfx_w/664, gfx_h/(ufix + (ufold ? 0 : 110))));
+ushb = ufold ? 0 : max(110, gfx_h/usc - ufix);
+// the height this layout asks for (at width 664), and a key that changes when it does: the plug-in window follows it
+uwanth = ufix + (ufold ? 0 : 240);
+uwantk = 1 + ufold + 2*uadv;
 uox = floor((gfx_w-664*usc)/2 - 8*usc);
 ulb = mouse_cap & 1;
 upress = ulb && !ulbp;
@@ -1034,8 +1040,23 @@ ucol(ucBG, 1);
 uadv ? gfx_rect(uvx2+max(1, floor(1.4*usc)), floor(46*usc), uvw2-2*max(1, floor(1.4*usc)), 1)
      : gfx_rect(uvx+max(1, floor(1.4*usc)), floor(46*usc), uvw-2*max(1, floor(1.4*usc)), 1);
 
+// ---- the bar that folds the spectrum away or opens it
+usx = floor(uox+16*usc); usw = floor(648*usc);
+ufby = floor(56*usc); ufbh = floor(18*usc);
+uin(usx, ufby, usw, ufbh) ? uhov = 32;
+ucol(ucSURF, 1); urr(usx, ufby, usw, ufbh, max(2, floor(3*usc)), 1);
+ucol(uhov == 32 ? ucTEXT : ucBORD, 1); urr(usx, ufby, usw, ufbh, max(2, floor(3*usc)), 0);
+ucol(uhov == 32 ? ucTEXT : ucMUTED, 1);
+ufcx = usx + floor(13*usc); ufcc = ufby + ufbh*0.5;
+ufold ? gfx_triangle(ufcx - 2.5*usc, ufcc - 4*usc, ufcx - 2.5*usc, ufcc + 4*usc, ufcx + 3*usc, ufcc)
+      : gfx_triangle(ufcx - 4*usc, ufcc - 2.5*usc, ufcx + 4*usc, ufcc - 2.5*usc, ufcx, ufcc + 3*usc);
+gfx_setfont(7); gfx_measurestr("SPECTRUM", ufbw, ufbt);
+gfx_x = usx + floor(24*usc); gfx_y = floor(ufby + (ufbh-ufbt)/2); gfx_drawstr("SPECTRUM");
+gfx_setfont(3);
+
 // ---- spectrum
-usx = floor(uox+16*usc); usy = floor(56*usc); usw = floor(648*usc); ush = floor(ushb*usc);
+usy = floor(78*usc); ush = floor(ushb*usc);
+!ufold ? (
 ucol(ucSTAGE, 1); gfx_rect(usx, usy, usw, ush);
 unorm = 8/(NL*NL);
 ufmin = 40; ufmax = min(20000, srate*0.5);
@@ -1099,9 +1120,10 @@ uin(uanx, uany, uanw, uanh) ? uhov = 31;
 ucol(ucSTAGE, 1); urr(uanx, uany, uanw, uanh, max(2, floor(3*usc)), 1);
 ubtn(uanx, uany, uanw, uanh, uana, uhov == 31, "ANALYZER");
 gfx_setfont(3);
+);
 
 // ---- expert tab: noise print, thresholds, enhance
-uyk = usy + ush + floor(12*usc);
+uyk = ufold ? floor(82*usc) : usy + ush + floor(12*usc);
 uadv ? (
   uay = uyk; uah = floor(152*usc);
   ucol(ucSURF, 1); urr(usx, uay, usw, uah, 6*usc, 1);
@@ -1280,6 +1302,10 @@ upress ? (
     slider20 = 0; slider_automate(524288); slider_automate(524288, 1);
   ) : uhov == 29 ? (
     slider20 = 1; slider_automate(524288); slider_automate(524288, 1);
+  ) : uhov == 32 ? (
+    // open the spectrum (and switch the analyzer on with it) or fold it away (and switch it off)
+    slider23 = ufold ? 1 : 0; slider22 = slider23;
+    slider_automate(4194304 + 2097152); slider_automate(4194304 + 2097152, 1);
   ) : uhov == 31 ? (
     slider22 = uana ? 0 : 1; slider_automate(2097152); slider_automate(2097152, 1);
   ) : uhov > 100 ? (
@@ -1334,6 +1360,7 @@ uhov == 24 ? gfx_drawstr("Expert tab: noise print, thresholds, Enhance and Prese
 uhov == 26 ? gfx_drawstr("Reset: all faders back to their defaults. The noise print stays.") :
 uhov == 27 ? gfx_drawstr(udark ? "Dark mode. Click for light." : "Light mode. Click for dark.") :
 uhov == 30 ? gfx_drawstr(uana ? "Gray: input. Colors: what you hear of each part." : "The analyzer is off. The faders and meters still work.") :
+uhov == 32 ? gfx_drawstr(ufold ? "Spectrum: click to open the analyzer display." : "Spectrum: click to fold the display away. Folded, it costs no CPU.") :
 uhov == 31 ? gfx_drawstr(uana ? "Analyzer: click to switch the spectrum off and save CPU." : "Analyzer: click to show the spectrum again.") :
 uhov == 40 ? gfx_drawstr("Noise threshold: higher treats more as noise, lower keeps more.") :
 uhov == 41 ? gfx_drawstr("Tonal threshold: higher removes more hum and steady tones, lower protects tonal sounds.") :

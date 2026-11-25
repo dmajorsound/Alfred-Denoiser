@@ -16,9 +16,9 @@ on:
         default: ""
 
 env:
-  VERSION: "0.29 beta"        # shown in the installers
-  FILEVER: "0.29_beta"        # used in the file names
-  PKGVER: "0.29.0"            # numeric version for the macOS package receipts
+  VERSION: "0.30 beta"        # shown in the installers
+  FILEVER: "0.30_beta"        # used in the file names
+  PKGVER: "0.30.0"            # numeric version for the macOS package receipts
 
 jobs:
   check-translation:
