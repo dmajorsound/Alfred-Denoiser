@@ -83,6 +83,10 @@ public:
   double v_enlr = 0.0;
   double v_ent = 0.0;
   double v_ewid = 0.0;
+  double v_ext_enh = 0.0;
+  double v_ext_enh_load = 0.0;
+  double v_ext_enh_on = 0.0;
+  double v_ext_enh_sec = 0.0;
   double v_ext_neural = 0.0;
   double v_ext_noinit = 0.0;
   double v_ext_upd_a = 0.0;
@@ -234,6 +238,7 @@ public:
   double v_slider22 = 0.0;
   double v_slider23 = 0.0;
   double v_slider24 = 0.0;
+  double v_slider25 = 0.0;
   double v_slider3 = 0.0;
   double v_slider4 = 0.0;
   double v_slider5 = 0.0;
@@ -307,10 +312,14 @@ public:
   double v_udh = 0.0;
   double v_udrag = 0.0;
   double v_udy = 0.0;
+  double v_uebw = 0.0;
+  double v_uebx = 0.0;
   double v_uedit = 0.0;
   double v_uei = 0.0;
   double v_uek = 0.0;
+  double v_uem = 0.0;
   double v_uen = 0.0;
+  double v_uenauto = 0.0;
   double v_uer = 0.0;
   double v_uex = 0.0;
   double v_uex2 = 0.0;

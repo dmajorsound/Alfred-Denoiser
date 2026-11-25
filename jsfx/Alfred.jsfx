@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.36 beta
+//version: 0.37 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -30,6 +30,7 @@ slider21:50<0,100,0.1>-Preserve Transients (%)
 slider22:0<0,1,1{Off,On}>-Analyzer
 slider23:0<0,1,1{Folded,Open}>-Spectrum
 slider24:1<0,1,1{Classic,Neural}>-Voice Engine
+slider25:0<0,2,1{Classic,Restore,Sidon}>-Enhance Model
 
 in_pin:Left
 in_pin:Right
@@ -39,7 +40,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.36 beta";
+#verstr = "0.37 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -686,7 +687,8 @@ function update_params() local(so, key, dl)
     gSd = 0;
   );
   bpt = slider4 >= 0.5 ? 1 : 0;
-  enh_amt = slider17*0.01;
+  // with Restore or Sidon chosen the plug-in does the enhancing (ext_enh_on); the classic Enhance steps aside
+  enh_amt = ext_enh_on >= 0.5 ? 0 : slider17*0.01;
   mode_fx = slider20 >= 0.5;
   // how much shorter the gate holds on after the voice when Reverb is turned down: 1 at 0 dB, 0.56 at -10 dB, 0.25 at the bottom
   rvt = max(0.25, min(1, sqrt(slider8 >= 0.5 ? 0 : db2g(min(slider3, 0)))));
@@ -1065,6 +1067,9 @@ uin(usx, ufby, usw, ufbh) ? uhov = 32;
 // the neural voice engine exists only in the plug-in version (it sets ext_neural: 1 ready, 2 not available right now)
 unbw = floor(62*usc); unbh = floor(13*usc); unbx = usx + usw - unbw - floor(4*usc); unby = ufby + floor((ufbh-unbh)/2);
 ext_neural > 0 && uin(unbx, unby, unbw, unbh) ? uhov = 33;
+// the Enhance model (plug-in version only; ext_enh: 1 = Restore installed, 2 = Sidon installed, 3 = both)
+uebw = floor(118*usc); uebx = unbx - uebw - floor(6*usc);
+ext_enh > 0 && uin(uebx, unby, uebw, unbh) ? uhov = 35;
 // the UPDATE button is drawn with the footer, further down; its place is known from the frame before
 ext_update >= 0.5 && uupw > 0 && uin(uupx, uupy, uupw, uuph) ? uhov = 34;
 ucol(ucSURF, 1); urr(usx, ufby, usw, ufbh, max(2, floor(3*usc)), 1);
@@ -1078,6 +1083,11 @@ gfx_x = usx + floor(24*usc); gfx_y = floor(ufby + (ufbh-ufbt)/2); gfx_drawstr("S
 ext_neural > 0 ? (
   unon = slider24 >= 0.5 && ext_neural == 1 && slider20 < 0.5;
   ubtn(unbx, unby, unbw, unbh, unon, uhov == 33, "NEURAL");
+);
+ext_enh > 0 ? (
+  uem = ext_enh_on >= 0.5 ? floor(slider25 + 0.5) : 0;
+  ubtn(uebx, unby, uebw, unbh, uem > 0, uhov == 35, uem == 1 ? "ENHANCE: RESTORE" : uem == 2 ? "ENHANCE: SIDON" : "ENHANCE: CLASSIC");
+  sprintf(#uens, "%s has restored %d s of voice in your renders so far.", uem == 1 ? "Restore" : "Sidon", ext_enh_sec);
 );
 gfx_setfont(3);
 
@@ -1331,6 +1341,14 @@ upress ? (
     slider20 = 1; slider_automate(524288); slider_automate(524288, 1);
   ) : uhov == 34 ? (
     ext_upd_open = 1;
+  ) : uhov == 35 ? (
+    // Classic -> Restore -> Sidon -> Classic, skipping what is not installed. Choosing a network with Enhance at
+    // zero would do nothing, so Enhance goes to 100 % then, and back to zero when Classic returns.
+    uen = floor(slider25 + 0.5);
+    uen = uen == 0 ? ((ext_enh & 1) ? 1 : 2) : uen == 1 ? ((ext_enh & 2) ? 2 : 0) : 0;
+    uen > 0 && slider17 < 0.5 ? ( slider17 = 100; uenauto = 1; );
+    uen == 0 && uenauto ? ( slider17 = 0; uenauto = 0; );
+    slider25 = uen; slider_automate(16777216 + 65536); slider_automate(16777216 + 65536, 1);
   ) : uhov == 33 ? (
     slider24 = slider24 >= 0.5 ? 0 : 1; slider_automate(8388608); slider_automate(8388608, 1);
   ) : uhov == 32 ? (
@@ -1407,6 +1425,7 @@ uhov == 26 ? gfx_drawstr("Reset: all faders back to their defaults. The noise pr
 uhov == 27 ? gfx_drawstr(udark ? "Dark mode. Click for light." : "Light mode. Click for dark.") :
 uhov == 30 ? gfx_drawstr(uana ? "Gray: input. Colors: what you hear of each part." : "The analyzer is off. The faders and meters still work.") :
 uhov == 34 ? gfx_drawstr("A newer Alfred is available. Click to open the download page.") :
+uhov == 35 ? gfx_drawstr(ext_enh_load >= 0.5 ? "Loading the Enhance model ..." : ext_enh_on < 0.5 ? "Enhance: classic. Click for Restore or Sidon (studio voice)." : ext_enh_sec > 0 ? #uens : slider25 < 1.5 ? "Restore: studio voice. Worked out when you render, not during playback." : "Sidon: voice built anew. Worked out when you render (slow), not during playback.") :
 uhov == 33 ? gfx_drawstr(ext_neural == 2 ? "Neural voice engine: not available (needs 48 kHz and its installed files)." : slider20 >= 0.5 ? "Neural voice engine: works in Voice mode only." : slider24 >= 0.5 ? "Neural voice engine is on. Click for the classic engine." : "Classic engine is on. Click for the neural voice engine.") :
 uhov == 32 ? gfx_drawstr(ufold ? "Spectrum: click to open the display. The analyzer stays off until you switch it on there." : "Spectrum: click to fold the display away.") :
 uhov == 31 ? gfx_drawstr(uana ? "Analyzer: click to switch the spectrum off and save CPU." : "Analyzer: off, it costs no CPU. Click to show the spectrum.") :

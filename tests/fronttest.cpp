@@ -3,6 +3,7 @@
 //   names: sliderN (JSFX slider), e.g. slider2=-21 slider19=2
 #include "AlfredCore.h"
 #include "../src/neural/VoiceFront.h"
+#include "../src/neural/Enhance.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -42,6 +43,10 @@ int main(int argc, char** argv)
             *fx.var("play_state") = 1;
             front.reset();
         }
+        // Enhance as the plug-in runs it in an offline render: set ALFRED_ENH_DIR to the folder with the models
+        std::shared_ptr<EnhanceModels> em; EnhanceStage enh; std::vector<double> restBuf(8192, 0.0);
+        if (const char* dir = std::getenv("ALFRED_ENH_DIR")) { em = EnhanceModels::get(argv[1], dir); enh.setModels(em); enh.prepare(1, 4096); }
+        const bool enhRun = std::getenv("ALFRED_ENH_PLAYBACK") == nullptr;
         for (int p = 0, k = 0; p < n; ++k)
         {
             const int want_bs = bsArg > 0 ? bsArg : sizes[k % 6];
@@ -57,6 +62,20 @@ int main(int argc, char** argv)
             const float* ip[2] = { x.data() + p, x.data() + p }; double* cp[2] = { core.data(), core.data() };
             front.pre(ip, cp, m, want);
             for (int i = 0; i < m; ++i) { *spl0 = core[(size_t)i]; *spl1 = core[(size_t)i]; fx.sec_sample(); core[(size_t)i] = *spl0; }
+            const int model = em && fx.var("slider25") ? (int)(*fx.var("slider25") + 0.5) : 0;
+            if (double* v = fx.var("ext_enh_on")) *v = model != 0 ? 1 : 0;
+            if (model != 0)
+            {
+                std::string err; em->load(model, err);
+                std::fill(restBuf.begin(), restBuf.end(), 0.0);
+                double* rp[2] = { restBuf.data(), restBuf.data() };
+                front.post(rp, m, hi, lo, (int)*fx.var("pdc_delay"));
+                const double* rc[2] = { restBuf.data(), restBuf.data() };
+                const bool plain = power && (int)(*fx.var("slider19") + 0.5) == 0;
+                const double amount = plain ? *fx.var("slider17") * 0.01 : 0.0;
+                enh.process(cp, rc, m, model, amount, enhRun && amount > 0.0);
+            }
+            else
             front.post(cp, m, hi, lo, (int)*fx.var("pdc_delay"));
             for (int i = 0; i < m; ++i) out[(size_t)(p + i)] = (float)core[(size_t)i];
             p += m;

@@ -1,0 +1,21 @@
+Alfred's Enhance models (optional). Both are run through ONNX Runtime (see THIRD-PARTY-NOTICES.txt).
+
+1. Restore (model file restore.fp16.onnx)
+   audiojs/restore, https://huggingface.co/audiojs/restore. The model file is used unchanged.
+   License: OpenRAIL, the license of the Dialogs dataset by Ilya Shigabeev and Ilya Latyshev (Langswap).
+   The full text is in restore-LICENSE-OpenRAIL.txt. Whoever uses this model, or audio made with it, agrees to
+   the use restrictions in Section 2 of that license. In short: no use that breaks the law, harms or exploits
+   minors, spreads false information to harm others, defames or harasses, discriminates, or serves automated
+   decisions about people's rights, medical advice, or law enforcement profiling. If you pass the model on, pass
+   the license on with it.
+   Trained by audiojs on: VCTK (CSTR, University of Edinburgh), LibriTTS-R (Koizumi et al.), SIWIS (Honnet et al.),
+   VocalSet (Wilkins et al.), MUSAN (Snyder, Chen, Povey), Pocket TTS voices (Kyutai), all CC BY 4.0;
+   Dialogs (Langswap); Supertonic 3 voices (Supertone); room responses of the MIT IR Survey (training only).
+
+2. Sidon (model files sidon-predictor.onnx, sidon-vocoder.onnx)
+   Sidon by sarulab-speech, https://github.com/sarulab-speech/Sidon, MIT License (Sidon-LICENSE-MIT.txt).
+   ONNX files from https://huggingface.co/soniqo/Sidon-ONNX (int8), used unchanged. They build on
+   w2v-BERT 2.0 (Meta, MIT) and the Descript Audio Codec (Descript, MIT).
+
+3. The feature front-end for Sidon in Alfred's code follows speech-core (soniqo), Apache License 2.0,
+   https://github.com/soniqo/speech-core.

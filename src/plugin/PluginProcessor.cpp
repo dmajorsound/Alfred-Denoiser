@@ -53,6 +53,9 @@ AlfredProcessor::AlfredProcessor()
     vPdc = core.var("pdc_delay"); vSpl0 = core.var("spl0"); vSpl1 = core.var("spl1"); vPower = core.var("slider4");
     vGa = core.var("ga"); vDelta = core.var("slider19"); vMode = core.var("slider20"); vEngine = core.var("slider24");
     vExtNeural = core.var("ext_neural"); vExtVoice = core.var("ext_voice");
+    vEnhModel = core.var("slider25"); vEnhAmt = core.var("slider17"); vSolo = core.var("slider5"); vMuteSig = core.var("slider6");
+    vExtEnh = core.var("ext_enh"); vExtEnhOn = core.var("ext_enh_on"); vExtEnhSec = core.var("ext_enh_sec"); vExtEnhLoad = core.var("ext_enh_load");
+    enhLive = juce::SystemStats::getEnvironmentVariable("ALFRED_ENHANCE_LIVE", {}).isNotEmpty();
     if (vExtNeural) *vExtNeural = 2.0;      // the interface shows the engine switch; "not available" until it is loaded
 
     // @init at a default rate; the real rate arrives with prepareToPlay (the script follows srate in @block)
@@ -110,19 +113,55 @@ void AlfredProcessor::loadNeural()
     for (const auto& d : dirs)
     {
         const juce::File lib = d.getChildFile(libName), model = d.getChildFile("dpdfnet2_48khz_hr.onnx");
+        if (lib.existsAsFile() && enhModels == nullptr)
+        {
+            auto m = EnhanceModels::get(lib.getFullPathName().toStdString(), d.getFullPathName().toStdString());
+            if (m->installed(EnhanceModels::kRestore) || m->installed(EnhanceModels::kSidon)) { enhModels = m; enh.setModels(m); }
+        }
+        if (neural != nullptr) continue;
         if (!lib.existsAsFile() || !model.existsAsFile()) continue;
         std::string error;
         if (neuralRuntime.load(lib.getFullPathName().toStdString(), model.getFullPathName().toStdString(), error))
         {
             neural = std::make_unique<NeuralVoice>(neuralRuntime);
-            break;
         }
     }
+}
+
+int AlfredProcessor::enhModel() const
+{
+    if (enhModels == nullptr || vEnhModel == nullptr || std::abs(*vSrate - 48000.0) >= 1.0) return 0;
+    const int m = (int)(*vEnhModel + 0.5);
+    return (m == EnhanceModels::kRestore || m == EnhanceModels::kSidon) && enhModels->installed(m) ? m : 0;
+}
+
+// voice: the classic engine's output; rest: what comes back at the Noise fader's level (or nullptr)
+void AlfredProcessor::enhRun(double* const* voice, const double* const* rest, int n, int nch)
+{
+    const int m = enhModel();
+    const bool ready = enhModels->loaded(m);
+    if (!ready && pendingEnhLoad.exchange(m) != m) triggerAsyncUpdate();
+    const int delta = vDelta ? (int)(*vDelta + 0.5) : 0, solo = vSolo ? (int)(*vSolo + 0.5) : 0;
+    const bool plain = *vPower >= 0.5 && delta == 0 && (solo == 0 || (solo & 1)) && (vMuteSig == nullptr || *vMuteSig < 0.5)
+                       && (vMode == nullptr || *vMode < 0.5);
+    const double amount = plain && vEnhAmt ? *vEnhAmt * 0.01 : 0.0;
+    // the networks need seconds of audio at once and far more than real time allows: they work when the host
+    // renders offline. During playback the voice passes unchanged, with the same delay.
+    const bool run = ready && amount > 0.0 && (isNonRealtime() || enhLive);
+    juce::ignoreUnused(nch);
+    enh.process(voice, rest, n, m, amount, run);
+    if (vExtEnhSec) *vExtEnhSec = enh.secondsEnhanced();
 }
 
 void AlfredProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     loadNeural();       // before the lock: loading the model takes a moment
+    if (enhModels != nullptr && vEnhModel != nullptr)
+    {
+        const int m = (int)(*vEnhModel + 0.5);
+        std::string error;
+        if (m != 0 && enhModels->installed(m)) enhModels->load(m, error);
+    }
     const juce::SpinLock::ScopedLockType lock(stateLock);
     *vSrate = sampleRate;
     if (vBlock) *vBlock = samplesPerBlock;
@@ -134,7 +173,11 @@ void AlfredProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
         front->prepare(sampleRate, juce::jmin(2, juce::jmax(1, getTotalNumInputChannels())), samplesPerBlock);
         for (int c = 0; c < 2; ++c) { nIn[c].assign((size_t)front->capacity(), 0.0f); nCore[c].assign((size_t)front->capacity(), 0.0); }
     }
-    const int lat = (int)*vPdc + neuralLatency();
+    const int nchs = juce::jmin(2, juce::jmax(1, getTotalNumInputChannels()));
+    enh.prepare(nchs, samplesPerBlock);
+    const size_t ecap = (size_t)juce::jmax(4096, front ? front->capacity() : 0);
+    for (int c = 0; c < 2; ++c) { eVoice[c].assign(4096, 0.0); eRest[c].assign(ecap, 0.0); }
+    const int lat = (int)*vPdc + neuralLatency() + enhLatency();
     if (lat != reportedLatency) { reportedLatency = lat; setLatencySamples(lat); }
 }
 
@@ -186,6 +229,18 @@ void AlfredProcessor::handleAsyncUpdate()
     const int lat = pendingLatency.exchange(-1);
     if (lat >= 0 && lat != getLatencySamples()) setLatencySamples(lat);
 
+    // an Enhance model was chosen that is not in memory yet: load it here, off the audio thread
+    const int want = pendingEnhLoad.load();
+    if (want != 0 && enhModels != nullptr)
+    {
+        if (vExtEnhLoad) *vExtEnhLoad = 1.0;
+        std::string error;
+        enhModels->load(want, error);
+        if (vExtEnhLoad) *vExtEnhLoad = 0.0;
+        int expected = want;
+        pendingEnhLoad.compare_exchange_strong(expected, 0);
+    }
+
     // power button <-> host bypass
     const int link = pendingLink.exchange(0);
     if (link != 0 && powerParam != nullptr)
@@ -229,6 +284,7 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
         // playback starts: the neural engine forgets what it heard before, as the classic engine does in its
         // @block, so a render always begins from the same state
         if (playing && !wasPlaying && front) front->reset();
+        if (playing && !wasPlaying) enh.reset();
         wasPlaying = playing;
     }
     const bool neuralUsable = neural != nullptr && std::abs(*vSrate - 48000.0) < 1.0;
@@ -237,6 +293,10 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
     const bool neuralOn = neural != nullptr && front != nullptr && neuralUsable && *vPower >= 0.5
                           && (vMode == nullptr || *vMode < 0.5) && (vEngine == nullptr || *vEngine >= 0.5);
     if (vExtVoice) *vExtVoice = neuralOn ? 1.0 : 0.0;
+    const int em = enhModel();
+    if (vExtEnh) *vExtEnh = enhModels == nullptr || std::abs(*vSrate - 48000.0) >= 1.0 ? 0.0
+                           : (enhModels->installed(EnhanceModels::kRestore) ? 1.0 : 0.0) + (enhModels->installed(EnhanceModels::kSidon) ? 2.0 : 0.0);
+    if (vExtEnhOn) *vExtEnhOn = em != 0 ? 1.0 : 0.0;       // the classic engine's own Enhance steps aside
     core.sec_block();
 
     T* l = buffer.getWritePointer(0);
@@ -250,6 +310,17 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
             core.sec_sample();
             l[i] = (T)*vSpl0;
             if (r) r[i] = (T)*vSpl1;
+        }
+        if (em != 0)
+        {
+            for (int start = 0; start < n; start += 4096)
+            {
+                const int len = juce::jmin(4096, n - start);
+                for (int i = 0; i < len; ++i) { eVoice[0][(size_t)i] = (double)l[start + i]; if (r) eVoice[1][(size_t)i] = (double)r[start + i]; }
+                double* vp[2] = { eVoice[0].data(), eVoice[1].data() };
+                enhRun(vp, nullptr, len, nch);
+                for (int i = 0; i < len; ++i) { l[start + i] = (T)vp[0][i]; if (r) r[start + i] = (T)vp[1][i]; }
+            }
         }
     }
     else
@@ -275,7 +346,17 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
                 cp[0][i] = *vSpl0;
                 if (r) cp[1][i] = *vSpl1;
             }
-            front->post(cp, len, levelHi, levelLo, (int)*vPdc);
+            if (em != 0)
+            {
+                // the rest is kept apart, so that only the voice is restored
+                for (int c = 0; c < 2; ++c) std::fill(eRest[c].begin(), eRest[c].begin() + len, 0.0);
+                double* rp[2] = { eRest[0].data(), eRest[1].data() };
+                front->post(rp, len, levelHi, levelLo, (int)*vPdc);
+                const double* rc[2] = { rp[0], rp[1] };
+                enhRun(cp, rc, len, nch);
+            }
+            else
+                front->post(cp, len, levelHi, levelLo, (int)*vPdc);
             for (int i = 0; i < len; ++i) { l[start + i] = (T)cp[0][i]; if (r) r[start + i] = (T)cp[1][i]; }
         }
     }
@@ -283,7 +364,7 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
 
     if (hostBypass) *vPower = powerSave;
 
-    const int lat = (int)*vPdc + neuralLatency();
+    const int lat = (int)*vPdc + neuralLatency() + enhLatency();
     if (lat != reportedLatency) { reportedLatency = lat; pendingLatency = lat; triggerAsyncUpdate(); }
 }
 

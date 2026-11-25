@@ -13,6 +13,8 @@
         <line choice="au"/>
         <line choice="clap"/>
         <line choice="neural"/>
+        <line choice="restore"/>
+        <line choice="sidon"/>
     </choices-outline>
     <choice id="vst3" title="VST3" description="Alfred as VST3 plug-in, for REAPER and most other hosts. Goes to /Library/Audio/Plug-Ins/VST3." start_selected="true">
         <pkg-ref id="com.dmajorsound.alfred.vst3"/>
@@ -26,8 +28,16 @@
     <choice id="neural" title="Neural voice engine" description="The files the neural voice engine needs, shared by all formats (about 70 MB, needs macOS 13 or newer). Without them Alfred works with its classic engine only." start_selected="true">
         <pkg-ref id="com.dmajorsound.alfred.support"/>
     </choice>
+    <choice id="restore" title="Enhance model: Restore" description="Studio voice restoration, worked out when you render (about 36 MB). Needs the neural voice engine files. License: OpenRAIL (restore-LICENSE-OpenRAIL.txt is installed with it). By installing you accept its use restrictions: no unlawful, harmful, harassing or discriminating use." start_selected="true">
+        <pkg-ref id="com.dmajorsound.alfred.restore"/>
+    </choice>
+    <choice id="sidon" title="Enhance model: Sidon" description="Builds the voice anew in studio quality, worked out when you render; slow (about 300 MB). Needs the neural voice engine files. MIT License." start_selected="true">
+        <pkg-ref id="com.dmajorsound.alfred.sidon"/>
+    </choice>
     <pkg-ref id="com.dmajorsound.alfred.vst3" version="VERSION" onConclusion="none">alfred-vst3.pkg</pkg-ref>
     <pkg-ref id="com.dmajorsound.alfred.au" version="VERSION" onConclusion="none">alfred-au.pkg</pkg-ref>
     <pkg-ref id="com.dmajorsound.alfred.clap" version="VERSION" onConclusion="none">alfred-clap.pkg</pkg-ref>
     <pkg-ref id="com.dmajorsound.alfred.support" version="VERSION" onConclusion="none">alfred-support.pkg</pkg-ref>
+    <pkg-ref id="com.dmajorsound.alfred.restore" version="VERSION" onConclusion="none">alfred-restore.pkg</pkg-ref>
+    <pkg-ref id="com.dmajorsound.alfred.sidon" version="VERSION" onConclusion="none">alfred-sidon.pkg</pkg-ref>
 </installer-gui-script>

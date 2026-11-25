@@ -1,9 +1,9 @@
 ; Alfred installer for Windows (Inno Setup 6). The version comes from the build: ISCC /DAppVer=0.27 /DFileVer=0.27_beta
 #ifndef AppVer
-  #define AppVer "0.36 beta"
+  #define AppVer "0.37 beta"
 #endif
 #ifndef FileVer
-  #define FileVer "0.36_beta"
+  #define FileVer "0.37_beta"
 #endif
 
 [Setup]
@@ -38,12 +38,16 @@ Name: "custom"; Description: "Choose what to install"; Flags: iscustom
 Name: "vst3"; Description: "VST3 (REAPER and most other hosts)"; Types: full custom
 Name: "clap"; Description: "CLAP (REAPER, Bitwig Studio and other hosts that support CLAP)"; Types: full custom
 Name: "neural"; Description: "Neural voice engine files (shared by both formats; without them Alfred uses its classic engine only)"; Types: full custom
+Name: "restore"; Description: "Enhance model Restore: studio voice, worked out when you render (36 MB, needs the neural files). OpenRAIL license: no unlawful, harmful, harassing or discriminating use"; Types: full custom
+Name: "sidon"; Description: "Enhance model Sidon: builds the voice anew, worked out when you render, slow (300 MB, needs the neural files). MIT License"; Types: full custom
 
 [Files]
 Source: "..\..\build\Alfred_artefacts\Release\VST3\Alfred.vst3\*"; DestDir: "{commoncf64}\VST3\Alfred.vst3"; Components: vst3; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\build\Alfred_artefacts\Release\CLAP\Alfred.clap"; DestDir: "{commoncf64}\CLAP"; Components: clap; Flags: ignoreversion
 ; neural voice engine: ONNX Runtime and the model, shared by both plug-in formats
 Source: "..\..\support\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; Components: neural; Flags: ignoreversion
+Source: "..\..\enhance\restore\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; Components: restore; Flags: ignoreversion
+Source: "..\..\enhance\sidon\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; Components: sidon; Flags: ignoreversion
 
 [Messages]
 WelcomeLabel1=Alfred%nA simple Denoiser at your Service

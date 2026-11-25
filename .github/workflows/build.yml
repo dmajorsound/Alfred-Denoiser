@@ -16,9 +16,9 @@ on:
         default: ""
 
 env:
-  VERSION: "0.36 beta"        # shown in the installers
-  FILEVER: "0.36_beta"        # used in the file names
-  PKGVER: "0.36.0"
+  VERSION: "0.37 beta"        # shown in the installers
+  FILEVER: "0.37_beta"        # used in the file names
+  PKGVER: "0.37.0"
   ORTVER: "1.22.0"            # ONNX Runtime (taken from its official Python package) that runs the neural voice engine            # numeric version for the macOS package receipts
 
 jobs:
@@ -87,6 +87,12 @@ jobs:
           mk Alfred.clap clap /Library/Audio/Plug-Ins/CLAP
           pkgbuild --root support --install-location "/Library/Application Support/dmajorsound/Alfred" \
             --identifier com.dmajorsound.alfred.support --version "$PKGVER" alfred-support.pkg
+          # the two optional Enhance models, each a choice of its own
+          bash tools/fetch_enhance_models.sh enhance
+          pkgbuild --root enhance/restore --install-location "/Library/Application Support/dmajorsound/Alfred" \
+            --identifier com.dmajorsound.alfred.restore --version "$PKGVER" alfred-restore.pkg
+          pkgbuild --root enhance/sidon --install-location "/Library/Application Support/dmajorsound/Alfred" \
+            --identifier com.dmajorsound.alfred.sidon --version "$PKGVER" alfred-sidon.pkg
           mkdir -p ui
           cp installer/mac_ui/welcome.html installer/mac_ui/logo.png installer/mac_ui/logo-dark.png ui/
           tiffutil -cathidpicheck installer/mac_ui/background.png installer/mac_ui/background@2x.png -out ui/background.tiff
@@ -122,6 +128,9 @@ jobs:
           Copy-Item ort\onnxruntime\capi\onnxruntime.dll support\
           Copy-Item resources\models\dpdfnet2_48khz_hr.onnx, resources\models\THIRD-PARTY-NOTICES.txt, resources\models\DPDFNet-LICENSE-Apache-2.0.txt support\
           Get-ChildItem support
+          # the two optional Enhance models, each a component of its own
+          & "C:\Program Files\Git\bin\bash.exe" tools/fetch_enhance_models.sh enhance
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVer=$env:VERSION" "/DFileVer=$env:FILEVER" installer\win\alfred.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4

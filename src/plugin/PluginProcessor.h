@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "AlfredCore.h"
 #include "../neural/VoiceFront.h"
+#include "../neural/Enhance.h"
 #include <array>
 #include <atomic>
 
@@ -93,6 +94,18 @@ private:
     std::unique_ptr<VoiceFront> front;
     std::vector<float> nIn[2];
     std::vector<double> nCore[2];
+
+    // ---- Enhance: studio restoration of the voice (Restore or Sidon), worked out while the host renders offline
+    std::shared_ptr<EnhanceModels> enhModels;
+    EnhanceStage enh;
+    int enhModel() const;                 // the armed model (0 = none): chosen, installed, 48 kHz
+    int enhLatency() const { return enhModel() != 0 ? EnhanceStage::kLatency : 0; }
+    void enhRun(double* const* voice, const double* const* rest, int n, int nch);
+    std::vector<double> eVoice[2], eRest[2];
+    double* vEnhModel = nullptr; double* vEnhAmt = nullptr; double* vSolo = nullptr; double* vMuteSig = nullptr;
+    double* vExtEnh = nullptr; double* vExtEnhOn = nullptr; double* vExtEnhSec = nullptr; double* vExtEnhLoad = nullptr;
+    std::atomic<int> pendingEnhLoad { 0 };
+    bool enhLive = false;
 
     std::atomic<int> pendingLatency { -1 };
     int reportedLatency = -1;
