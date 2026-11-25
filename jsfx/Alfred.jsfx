@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.32 beta
+//version: 0.33 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -39,7 +39,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.32 beta";
+#verstr = "0.33 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -1006,7 +1006,6 @@ gfx_setfont(1);
 ucol(ucTEXT, 1); gfx_x = uox+50*usc; gfx_y = 8*usc; gfx_drawstr("Alfred");
 // the dmajorsound mark (only the graphic), above the end of the title, a little to the right and up
 gfx_measurestr("Alfred", uttw, utth);
-ucol(ucMUTED, 1); ulogo(floor(uox+50*usc + uttw + (usc >= 1.5 ? lgw2 : lgw1) + 3*usc), floor(13*usc));
 gfx_a = 1;
 gfx_setfont(8);
 ucol(ucMUTED, 1); gfx_x = uox+51*usc; gfx_y = 30*usc; gfx_drawstr("A simple Denoiser at your Service");
@@ -1366,7 +1365,11 @@ gfx_measurestr(#uver, ulgw, ulgh);
 ucol(ucMUTED, 1); gfx_x = uox+16*usc; gfx_y = floor(ufcy - ulgh/2); gfx_drawstr(#uver);
 gfx_a = 1; ucol(ucMUTED, 1);
 gfx_measurestr("dmajorsound.com", ulgw, ulgh);
-gfx_x = floor(uox+664*usc - ulgw); gfx_y = floor(ufcy - ulgh/2); gfx_drawstr("dmajorsound.com");
+// the dmajorsound mark sits in the bottom right corner, "dmajorsound.com" to its left, both on one center line
+ulmw = usc >= 1.5 ? lgw2 : lgw1;
+gfx_x = floor(uox+664*usc - ulmw - 6*usc - ulgw); gfx_y = floor(ufcy - ulgh/2); gfx_drawstr("dmajorsound.com");
+ucol(ucMUTED, 1); ulogo(floor(uox+664*usc), ufcy);
+gfx_a = 1;
 gfx_setfont(2);
 ucol(ucMUTED, 1);
 gfx_x = uox+16*usc; gfx_y = floor(uyf);

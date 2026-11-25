@@ -357,6 +357,7 @@ public:
   double v_ulf = 0.0;
   double v_ulgh = 0.0;
   double v_ulgw = 0.0;
+  double v_ulmw = 0.0;
   double v_ulv = 0.0;
   double v_umfx = 0.0;
   double v_umw = 0.0;

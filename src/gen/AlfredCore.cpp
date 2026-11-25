@@ -42,7 +42,7 @@ AlfredCore::AlfredCore()
   str_define(90003, "+");
   str_define(90004, "");
   str_define(90005, "%s%.1f dB");
-  str_define(90006, "0.32 beta");
+  str_define(90006, "0.33 beta");
   str_define(90007, "0000007ffffeefffffdfd810");
   str_define(90008, "0000008ffff84ffffc1fffe3");
   str_define(90009, "0000008ffff84ffffb0ffffc");
@@ -548,6 +548,7 @@ double* AlfredCore::var(const char* n)
   if (!std::strcmp(n, "ulf")) return &v_ulf;
   if (!std::strcmp(n, "ulgh")) return &v_ulgh;
   if (!std::strcmp(n, "ulgw")) return &v_ulgw;
+  if (!std::strcmp(n, "ulmw")) return &v_ulmw;
   if (!std::strcmp(n, "ulv")) return &v_ulv;
   if (!std::strcmp(n, "umfx")) return &v_umfx;
   if (!std::strcmp(n, "umw")) return &v_umw;
@@ -2683,8 +2684,6 @@ void AlfredCore::sec_gfx()
   (void)((v_gfx_y = DF((8.0 * v_usc))));
   (void)(g_drawstr(90045.0));
   (void)(g_measurestr(90045.0, &v_uttw, &v_utth));
-  (void)(f_ucol(v_ucmuted, 1.0));
-  (void)(f_ulogo(std::floor(((((v_uox + (50.0 * v_usc)) + v_uttw) + (T(((v_usc) >= (1.5) ? 1.0 : 0.0)) ? v_lgw2 : v_lgw1)) + (3.0 * v_usc))), std::floor((13.0 * v_usc))));
   (void)((v_gfx_a = DF(1.0)));
   (void)(g_setfont(8.0, -1.0, 0.0, 0.0));
   (void)(f_ucol(v_ucmuted, 1.0));
@@ -3347,9 +3346,13 @@ void AlfredCore::sec_gfx()
   (void)((v_gfx_a = DF(1.0)));
   (void)(f_ucol(v_ucmuted, 1.0));
   (void)(g_measurestr(90094.0, &v_ulgw, &v_ulgh));
-  (void)((v_gfx_x = DF(std::floor((v_uox + ((664.0 * v_usc) - v_ulgw))))));
+  (void)((v_ulmw = DF((T(((v_usc) >= (1.5) ? 1.0 : 0.0)) ? v_lgw2 : v_lgw1))));
+  (void)((v_gfx_x = DF(std::floor((v_uox + ((((664.0 * v_usc) - v_ulmw) - (6.0 * v_usc)) - v_ulgw))))));
   (void)((v_gfx_y = DF(std::floor((v_ufcy - (v_ulgh / 2.0))))));
   (void)(g_drawstr(90094.0));
+  (void)(f_ucol(v_ucmuted, 1.0));
+  (void)(f_ulogo(std::floor((v_uox + (664.0 * v_usc))), v_ufcy));
+  (void)((v_gfx_a = DF(1.0)));
   (void)(g_setfont(2.0, -1.0, 0.0, 0.0));
   (void)(f_ucol(v_ucmuted, 1.0));
   (void)((v_gfx_x = DF((v_uox + (16.0 * v_usc)))));
