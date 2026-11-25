@@ -5,15 +5,25 @@
     <background file="background.tiff" alignment="bottomleft" scaling="none"/>
     <background-darkAqua file="background-darkAqua.tiff" alignment="bottomleft" scaling="none"/>
     <welcome file="welcome.html" mime-type="text/html"/>
-    <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <!-- the installer shows a page where each plug-in format can be switched on or off -->
+    <options customize="always" require-scripts="false" hostArchitectures="arm64,x86_64"/>
     <domains enable_localSystem="true"/>
     <choices-outline>
-        <line choice="default"/>
+        <line choice="vst3"/>
+        <line choice="au"/>
+        <line choice="clap"/>
+        <line choice="neural"/>
     </choices-outline>
-    <choice id="default" title="Alfred VST3, AU and CLAP">
+    <choice id="vst3" title="VST3" description="Alfred as VST3 plug-in, for REAPER and most other hosts. Goes to /Library/Audio/Plug-Ins/VST3." start_selected="true">
         <pkg-ref id="com.dmajorsound.alfred.vst3"/>
+    </choice>
+    <choice id="au" title="Audio Unit" description="Alfred as Audio Unit, for Logic Pro, GarageBand and other hosts that use Audio Units. Goes to /Library/Audio/Plug-Ins/Components." start_selected="true">
         <pkg-ref id="com.dmajorsound.alfred.au"/>
+    </choice>
+    <choice id="clap" title="CLAP" description="Alfred as CLAP plug-in, for REAPER, Bitwig Studio and other hosts that support CLAP. Goes to /Library/Audio/Plug-Ins/CLAP." start_selected="true">
         <pkg-ref id="com.dmajorsound.alfred.clap"/>
+    </choice>
+    <choice id="neural" title="Neural voice engine" description="The files the neural voice engine needs, shared by all formats (about 70 MB, needs macOS 13 or newer). Without them Alfred works with its classic engine only." start_selected="true">
         <pkg-ref id="com.dmajorsound.alfred.support"/>
     </choice>
     <pkg-ref id="com.dmajorsound.alfred.vst3" version="VERSION" onConclusion="none">alfred-vst3.pkg</pkg-ref>

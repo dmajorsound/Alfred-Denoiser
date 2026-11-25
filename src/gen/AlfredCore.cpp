@@ -42,7 +42,7 @@ AlfredCore::AlfredCore()
   str_define(90003, "+");
   str_define(90004, "");
   str_define(90005, "%s%.1f dB");
-  str_define(90006, "0.33 beta");
+  str_define(90006, "0.34 beta");
   str_define(90007, "0000007ffffeefffffdfd810");
   str_define(90008, "0000008ffff84ffffc1fffe3");
   str_define(90009, "0000008ffff84ffffb0ffffc");
@@ -153,10 +153,10 @@ AlfredCore::AlfredCore()
   str_define(90114, "Neural voice engine: works in Voice mode only.");
   str_define(90115, "Neural voice engine is on. Click for the classic engine.");
   str_define(90116, "Classic engine is on. Click for the neural voice engine.");
-  str_define(90117, "Spectrum: click to open the analyzer display.");
-  str_define(90118, "Spectrum: click to fold the display away. Folded, it costs no CPU.");
+  str_define(90117, "Spectrum: click to open the display. The analyzer stays off until you switch it on there.");
+  str_define(90118, "Spectrum: click to fold the display away.");
   str_define(90119, "Analyzer: click to switch the spectrum off and save CPU.");
-  str_define(90120, "Analyzer: click to show the spectrum again.");
+  str_define(90120, "Analyzer: off, it costs no CPU. Click to show the spectrum.");
   str_define(90121, "Noise threshold: higher treats more as noise, lower keeps more.");
   str_define(90122, "Tonal threshold: higher removes more hum and steady tones, lower protects tonal sounds.");
   str_define(90123, "Band threshold 20 - 120 Hz: up cleans harder here, down keeps more.");
@@ -3281,9 +3281,8 @@ void AlfredCore::sec_gfx()
                               } else {
                                 if (T(EQ(v_uhov, 32.0))) {
                                   (void)((v_slider23 = DF((T(v_ufold) ? 1.0 : 0.0))));
-                                  (void)((v_slider22 = DF(v_slider23)));
-                                  (void)(rt_slider_automate((4194304.0 + 2097152.0), 0.0));
-                                  (void)(rt_slider_automate((4194304.0 + 2097152.0), 1.0));
+                                  (void)(rt_slider_automate(4194304.0, 0.0));
+                                  (void)(rt_slider_automate(4194304.0, 1.0));
                                 } else {
                                   if (T(EQ(v_uhov, 31.0))) {
                                     (void)((v_slider22 = DF((T(v_uana) ? 0.0 : 1.0))));

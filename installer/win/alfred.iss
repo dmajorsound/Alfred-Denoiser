@@ -1,9 +1,9 @@
 ; Alfred installer for Windows (Inno Setup 6). The version comes from the build: ISCC /DAppVer=0.27 /DFileVer=0.27_beta
 #ifndef AppVer
-  #define AppVer "0.33 beta"
+  #define AppVer "0.34 beta"
 #endif
 #ifndef FileVer
-  #define FileVer "0.33_beta"
+  #define FileVer "0.34_beta"
 #endif
 
 [Setup]
@@ -29,12 +29,22 @@ WizardSmallImageFile=small-100.bmp,small-200.bmp
 WizardImageStretch=no
 DisableWelcomePage=no
 
+; a page with check boxes: which plug-in formats to install
+[Types]
+Name: "full"; Description: "Everything"
+Name: "custom"; Description: "Choose what to install"; Flags: iscustom
+
+[Components]
+Name: "vst3"; Description: "VST3 (REAPER and most other hosts)"; Types: full custom
+Name: "clap"; Description: "CLAP (REAPER, Bitwig Studio and other hosts that support CLAP)"; Types: full custom
+Name: "neural"; Description: "Neural voice engine files (shared by both formats; without them Alfred uses its classic engine only)"; Types: full custom
+
 [Files]
-Source: "..\..\build\Alfred_artefacts\Release\VST3\Alfred.vst3\*"; DestDir: "{commoncf64}\VST3\Alfred.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\..\build\Alfred_artefacts\Release\CLAP\Alfred.clap"; DestDir: "{commoncf64}\CLAP"; Flags: ignoreversion
+Source: "..\..\build\Alfred_artefacts\Release\VST3\Alfred.vst3\*"; DestDir: "{commoncf64}\VST3\Alfred.vst3"; Components: vst3; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\build\Alfred_artefacts\Release\CLAP\Alfred.clap"; DestDir: "{commoncf64}\CLAP"; Components: clap; Flags: ignoreversion
 ; neural voice engine: ONNX Runtime and the model, shared by both plug-in formats
-Source: "..\..\support\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; Flags: ignoreversion
+Source: "..\..\support\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; Components: neural; Flags: ignoreversion
 
 [Messages]
 WelcomeLabel1=Alfred%nA simple Denoiser at your Service
-WelcomeLabel2=This installs Alfred as VST3 and CLAP plug-in into the common plug-in folders.%n%nAfterwards, rescan your plug-ins in REAPER.
+WelcomeLabel2=This installs Alfred as VST3 and CLAP plug-in into the common plug-in folders. On the next page you can choose which of them you want.%n%nAfterwards, rescan your plug-ins in REAPER.
