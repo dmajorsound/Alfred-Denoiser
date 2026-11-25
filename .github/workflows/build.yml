@@ -19,7 +19,7 @@ env:
   VERSION: "0.31 beta"        # shown in the installers
   FILEVER: "0.31_beta"        # used in the file names
   PKGVER: "0.31.0"
-  ORTVER: "1.23.1"            # ONNX Runtime release that runs the neural voice engine            # numeric version for the macOS package receipts
+  ORTVER: "1.22.0"            # ONNX Runtime (taken from its official Python package) that runs the neural voice engine            # numeric version for the macOS package receipts
 
 jobs:
   check-translation:
@@ -56,10 +56,10 @@ jobs:
           du -sh out/*
       - name: Neural voice engine files (ONNX Runtime + model)
         run: |
-          curl -L --fail -o ort.tgz "https://github.com/microsoft/onnxruntime/releases/download/v${ORTVER}/onnxruntime-osx-universal2-${ORTVER}.tgz"
-          tar xzf ort.tgz
+          python3 -m pip download "onnxruntime==${ORTVER}" --no-deps --only-binary=:all: --platform macosx_13_0_universal2 --python-version 3.12 -d ortwhl
           mkdir -p support
-          cp -L "onnxruntime-osx-universal2-${ORTVER}/lib/libonnxruntime.dylib" support/libonnxruntime.dylib
+          unzip -j -o ortwhl/*.whl "onnxruntime/capi/libonnxruntime.${ORTVER}.dylib" -d ortlib
+          cp "ortlib/libonnxruntime.${ORTVER}.dylib" support/libonnxruntime.dylib
           cp resources/models/dpdfnet2_48khz_hr.onnx resources/models/THIRD-PARTY-NOTICES.txt resources/models/DPDFNet-LICENSE-Apache-2.0.txt support/
           lipo -info support/libonnxruntime.dylib
           codesign --force -s - support/libonnxruntime.dylib
@@ -114,10 +114,12 @@ jobs:
           Get-ChildItem build\Alfred_artefacts\Release\CLAP, build\Alfred_artefacts\Release\VST3
           if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
           # neural voice engine files: ONNX Runtime + model
-          Invoke-WebRequest -Uri "https://github.com/microsoft/onnxruntime/releases/download/v$env:ORTVER/onnxruntime-win-x64-$env:ORTVER.zip" -OutFile ort.zip
+          python -m pip download "onnxruntime==$env:ORTVER" --no-deps --only-binary=:all: --platform win_amd64 --python-version 3.12 -d ortwhl
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item (Get-ChildItem ortwhl\*.whl)[0].FullName ort.zip
           Expand-Archive ort.zip -DestinationPath ort
           New-Item -ItemType Directory -Force support | Out-Null
-          Copy-Item "ort\onnxruntime-win-x64-$env:ORTVER\lib\onnxruntime.dll" support\
+          Copy-Item ort\onnxruntime\capi\onnxruntime.dll support\
           Copy-Item resources\models\dpdfnet2_48khz_hr.onnx, resources\models\THIRD-PARTY-NOTICES.txt, resources\models\DPDFNet-LICENSE-Apache-2.0.txt support\
           Get-ChildItem support
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVer=$env:VERSION" "/DFileVer=$env:FILEVER" installer\win\alfred.iss
