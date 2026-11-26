@@ -362,10 +362,7 @@ public:
   double v_uicx = 0.0;
   double v_uicy = 0.0;
   double v_uim = 0.0;
-  double v_uis = 0.0;
   double v_uisf = 0.0;
-  double v_uix = 0.0;
-  double v_uiy = 0.0;
   double v_uka = 0.0;
   double v_ukc = 0.0;
   double v_ukdim = 0.0;
