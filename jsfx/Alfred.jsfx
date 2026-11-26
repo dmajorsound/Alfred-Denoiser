@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.47 beta
+//version: 0.48 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -40,7 +40,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.47 beta";
+#verstr = "0.48 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -1445,7 +1445,7 @@ uhov == 27 ? gfx_drawstr(udark ? "Dark mode. Click for light." : "Light mode. Cl
 uhov == 30 ? gfx_drawstr(uana ? "Gray: input. Colors: what you hear of each part." : "The analyzer is off. The faders and meters still work.") :
 uhov == 34 ? gfx_drawstr(#uupt) :
 uhov == 35 ? gfx_drawstr(ext_enh_load >= 0.5 ? "Loading the Enhance model ..." : ext_enh_on < 0.5 ? "Enhance: classic. Click for Restore or Sidon (studio voice, not real time)." : slider25 < 1.5 ? "Restore: studio voice. Not real time: play a passage twice to hear it. Renders include it." : "Sidon: voice built anew, slow. Not real time: play a passage twice to hear it. Renders include it.") :
-uhov == 33 ? gfx_drawstr(ext_neural == 2 ? "Neural voice engine: not available (needs 48 kHz and its installed files)." : slider20 >= 0.5 ? "Neural voice engine: works in Voice mode only." : slider24 >= 0.5 ? "Neural voice engine is on (needs more CPU, 60 ms more delay). Click for the classic engine." : "Classic engine is on (real time, light on CPU). Click for the neural voice engine.") :
+uhov == 33 ? gfx_drawstr(ext_neural == 2 ? "Neural voice engine: not available (needs 48 kHz and its installed files)." : slider20 >= 0.5 ? "Neural voice engine: works in Voice mode only." : slider24 >= 0.5 ? "Neural voice engine (DeepFilterNet3) is on: more CPU, 40 ms more delay. Click for the classic engine." : "Classic engine is on (real time, light on CPU). Click for the neural voice engine.") :
 uhov == 32 ? gfx_drawstr(ufold ? "Spectrum: click to open the display. The analyzer stays off until you switch it on there." : "Spectrum: click to fold the display away.") :
 uhov == 31 ? gfx_drawstr(uana ? "Analyzer: click to switch the spectrum off and save CPU." : "Analyzer: off, it costs no CPU. Click to show the spectrum.") :
 uhov == 40 ? gfx_drawstr("Noise threshold: higher treats more as noise, lower keeps more.") :

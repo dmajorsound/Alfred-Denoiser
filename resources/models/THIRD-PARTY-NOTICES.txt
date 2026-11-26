@@ -1,11 +1,12 @@
-Alfred's neural voice engine uses two third-party components.
+Alfred's neural voice engine and its Enhance models use these third-party components.
 
-1. DPDFNet (model file dpdfnet2_48khz_hr.onnx)
-   Copyright Ceva, Inc. https://github.com/ceva-ip/DPDFNet
-   Licensed under the Apache License, Version 2.0. The full text is in DPDFNet-LICENSE-Apache-2.0.txt.
-   The model file is used unchanged.
+1. DeepFilterNet3 (weights file deepfilternet3_48k.bin, the real-time neural voice engine)
+   Copyright (c) 2021 Hendrik Schröter. https://github.com/Rikorose/DeepFilterNet
+   Dual licensed under the MIT License and the Apache License, Version 2.0; Alfred uses it under the MIT License,
+   the full text is in DeepFilterNet-LICENSE-MIT.txt. The weights are those of the official DeepFilterNet3 ONNX
+   export, unchanged, written into one file by tools/export_dfn3.py; the network is rebuilt in Alfred's own code.
 
-2. ONNX Runtime (libonnxruntime.dylib / onnxruntime.dll)
+2. ONNX Runtime (libonnxruntime.dylib / onnxruntime.dll), used by the Enhance models Restore and Sidon
    Copyright (c) Microsoft Corporation. https://github.com/microsoft/onnxruntime
    MIT License
 

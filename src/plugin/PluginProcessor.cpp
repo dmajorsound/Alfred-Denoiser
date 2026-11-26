@@ -113,19 +113,17 @@ void AlfredProcessor::loadNeural()
    #endif
     for (const auto& d : dirs)
     {
-        const juce::File lib = d.getChildFile(libName), model = d.getChildFile("dpdfnet2_48khz_hr.onnx");
+        const juce::File lib = d.getChildFile(libName), model = d.getChildFile("deepfilternet3_48k.bin");
         if (lib.existsAsFile() && enhModels == nullptr)
         {
             auto m = EnhanceModels::get(lib.getFullPathName().toStdString(), d.getFullPathName().toStdString());
             if (m->installed(EnhanceModels::kRestore) || m->installed(EnhanceModels::kSidon)) { enhModels = m; enh.setModels(m); }
         }
         if (neural != nullptr) continue;
-        if (!lib.existsAsFile() || !model.existsAsFile()) continue;
+        if (!model.existsAsFile()) continue;
         std::string error;
-        if (neuralRuntime.load(lib.getFullPathName().toStdString(), model.getFullPathName().toStdString(), error))
-        {
-            neural = std::make_unique<NeuralVoice>(neuralRuntime);
-        }
+        if ((dfnModel = DfnModel::load(model.getFullPathName().toStdString(), error)) != nullptr)
+            neural = std::make_unique<DfnVoice>(dfnModel);
     }
 }
 
@@ -172,7 +170,7 @@ void AlfredProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     core.sec_block();                       // runs setup() for the new rate, which sets pdc_delay
     if (neural)
     {
-        if (!front) front = std::make_unique<VoiceFront>(*neural);
+        if (!front) front = std::make_unique<VoiceFront<DfnVoice>>(*neural);
         front->prepare(sampleRate, juce::jmin(2, juce::jmax(1, getTotalNumInputChannels())), samplesPerBlock);
         for (int c = 0; c < 2; ++c) { nIn[c].assign((size_t)front->capacity(), 0.0f); nCore[c].assign((size_t)front->capacity(), 0.0); }
     }
@@ -347,7 +345,7 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
         // the network took away comes back at the level of the Noise fader
         const bool want = neuralOn;
         double levelHi, levelLo;
-        VoiceFront::levels(vGa ? *vGa : 1.0, vDelta ? (int)(*vDelta + 0.5) : 0, *vPower >= 0.5, levelHi, levelLo);
+        VoiceFront<DfnVoice>::levels(vGa ? *vGa : 1.0, vDelta ? (int)(*vDelta + 0.5) : 0, *vPower >= 0.5, levelHi, levelLo);
         const int cap = front->capacity();
         for (int start = 0; start < n; start += cap)
         {

@@ -1,9 +1,9 @@
 ; Alfred installer for Windows (Inno Setup 6). The version comes from the build: ISCC /DAppVer=0.27 /DFileVer=0.27_beta
 #ifndef AppVer
-  #define AppVer "0.47 beta"
+  #define AppVer "0.48 beta"
 #endif
 #ifndef FileVer
-  #define FileVer "0.47_beta"
+  #define FileVer "0.48_beta"
 #endif
 
 [Setup]

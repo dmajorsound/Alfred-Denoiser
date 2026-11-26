@@ -43,7 +43,7 @@ AlfredCore::AlfredCore()
   str_define(90003, "+");
   str_define(90004, "");
   str_define(90005, "%s%.1f dB");
-  str_define(90006, "0.47 beta");
+  str_define(90006, "0.48 beta");
   str_define(90007, "0000007ffffeefffffdfd810");
   str_define(90008, "0000008ffff84ffffc1fffe3");
   str_define(90009, "0000008ffff84ffffb0ffffc");
@@ -166,7 +166,7 @@ AlfredCore::AlfredCore()
   str_define(90126, "Sidon: voice built anew, slow. Not real time: play a passage twice to hear it. Renders include it.");
   str_define(90127, "Neural voice engine: not available (needs 48 kHz and its installed files).");
   str_define(90128, "Neural voice engine: works in Voice mode only.");
-  str_define(90129, "Neural voice engine is on (needs more CPU, 60 ms more delay). Click for the classic engine.");
+  str_define(90129, "Neural voice engine (DeepFilterNet3) is on: more CPU, 40 ms more delay. Click for the classic engine.");
   str_define(90130, "Classic engine is on (real time, light on CPU). Click for the neural voice engine.");
   str_define(90131, "Spectrum: click to open the display. The analyzer stays off until you switch it on there.");
   str_define(90132, "Spectrum: click to fold the display away.");

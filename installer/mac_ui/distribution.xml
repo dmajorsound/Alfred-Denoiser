@@ -27,7 +27,7 @@
     <choice id="clap" title="CLAP" description="Alfred as CLAP plug-in, for REAPER, Bitwig Studio and other hosts that support CLAP. Goes to /Library/Audio/Plug-Ins/CLAP." start_selected="true">
         <pkg-ref id="com.dmajorsound.alfred.clap"/>
     </choice>
-    <choice id="neural" title="Neural voice engine" description="The files the neural voice engine needs, shared by all formats (about 70 MB, needs macOS 13 or newer). Without them Alfred works with its classic engine only." start_selected="true">
+    <choice id="neural" title="Neural voice engine" description="The neural voice engine (DeepFilterNet3, real time) and the runtime the Enhance models need, shared by all formats (about 75 MB). Without them Alfred works with its classic engine only. Restore and Sidon need macOS 13 or newer." start_selected="true">
         <pkg-ref id="com.dmajorsound.alfred.support"/>
     </choice>
     <choice id="restore" title="Enhance model: Restore" description="Studio voice restoration, worked out when you render (about 36 MB). Needs the neural voice engine files. License: OpenRAIL (restore-LICENSE-OpenRAIL.txt is installed with it). You accepted it on the License page; switch this off if you do not want its terms." start_selected="true">

@@ -88,15 +88,16 @@ private:
     // engine Alfred has no extra delay and spends nothing on the network
     bool frontInPath() const { return neural != nullptr && front != nullptr && vSrate != nullptr && std::abs(*vSrate - 48000.0) < 1.0
                                       && vEngine != nullptr && *vEngine >= 0.5; }
-    int neuralLatency() const { return frontInPath() ? NeuralVoice::kLatency : 0; }
+    int neuralLatency() const { return frontInPath() ? DfnVoice::kLatency : 0; }
     bool frontWasInPath = false;
-    NeuralRuntime neuralRuntime;
-    std::unique_ptr<NeuralVoice> neural;
+    // DeepFilterNet3, written out in C++: its weights are the only file it needs
+    std::shared_ptr<DfnModel> dfnModel;
+    std::unique_ptr<DfnVoice> neural;
     bool neuralTried = false;
     bool wasPlaying = false;
     double* vExtVoice = nullptr;
     double* vGa = nullptr; double* vDelta = nullptr; double* vMode = nullptr; double* vEngine = nullptr; double* vExtNeural = nullptr;
-    std::unique_ptr<VoiceFront> front;
+    std::unique_ptr<VoiceFront<DfnVoice>> front;
     std::vector<float> nIn[2];
     std::vector<double> nCore[2];
 

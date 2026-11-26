@@ -1,5 +1,6 @@
 // End-to-end test of the neural voice engine in front of the classic engine, without a host.
-// fronttest <onnxruntime library> <model.onnx> <in.f32 mono> <out.f32> [name=value ...]
+// fronttest <onnxruntime library> <deepfilternet3_48k.bin | model.onnx> <in.f32 mono> <out.f32> [name=value ...]
+// (a .bin file runs DeepFilterNet3, the plug-in's engine; an .onnx file DPDFNet through ONNX Runtime)
 //   names: sliderN (JSFX slider), e.g. slider2=-21 slider19=2
 #include "AlfredCore.h"
 #include "../src/neural/VoiceFront.h"
@@ -10,12 +11,9 @@
 #include <chrono>
 #include <thread>
 #include <vector>
-int main(int argc, char** argv)
+template <class Engine> int run(Engine& nv, int argc, char** argv)
 {
-    if (argc < 5) return 1;
-    NeuralRuntime rt; std::string err;
-    if (!rt.load(argv[1], argv[2], err)) { std::fprintf(stderr, "load failed: %s\n", err.c_str()); return 2; }
-    NeuralVoice nv(rt); VoiceFront front(nv);
+    VoiceFront<Engine> front(nv);
     AlfredCore fx; fx.reserveMemory(32 * 65536);
     *fx.var("srate") = 48000; *fx.var("play_state") = 1; fx.sec_init();
     for (int i = 5; i < argc; ++i)
@@ -64,7 +62,7 @@ int main(int argc, char** argv)
             const bool want = power && *fx.var("slider20") < 0.5 && *fx.var("slider24") >= 0.5;
             if (double* v = fx.var("ext_voice")) *v = want ? 1 : 0;
             fx.sec_block();
-            double hi, lo; VoiceFront::levels(*fx.var("ga"), (int)(*fx.var("slider19") + 0.5), power, hi, lo);
+            double hi, lo; VoiceFront<Engine>::levels(*fx.var("ga"), (int)(*fx.var("slider19") + 0.5), power, hi, lo);
             const float* ip[2] = { x.data() + p, x.data() + p }; double* cp[2] = { core.data(), core.data() };
             front.pre(ip, cp, m, want);
             for (int i = 0; i < m; ++i) { *spl0 = core[(size_t)i]; *spl1 = core[(size_t)i]; fx.sec_sample(); core[(size_t)i] = *spl0; }
@@ -90,7 +88,25 @@ int main(int argc, char** argv)
         while (em && enh.waiting() > 0) std::this_thread::sleep_for(std::chrono::milliseconds(50));
         if (em) std::this_thread::sleep_for(std::chrono::milliseconds(300));
     }
-    std::fprintf(stderr, "latency %d\n", (int)*fx.var("pdc_delay") + NeuralVoice::kLatency);
+    std::fprintf(stderr, "latency %d\n", (int)*fx.var("pdc_delay") + Engine::kLatency);
     FILE* o = std::fopen(argv[4], "wb"); std::fwrite(out.data(), 4, out.size(), o); std::fclose(o);
     return 0;
+}
+
+int main(int argc, char** argv)
+{
+    if (argc < 5) return 1;
+    std::string err;
+    const std::string model = argv[2];
+    if (model.size() > 4 && model.compare(model.size() - 4, 4, ".bin") == 0)
+    {
+        auto m = DfnModel::load(model, err);
+        if (!m) { std::fprintf(stderr, "load failed: %s\n", err.c_str()); return 2; }
+        DfnVoice nv(m);
+        return run(nv, argc, argv);
+    }
+    NeuralRuntime rt;
+    if (!rt.load(argv[1], argv[2], err)) { std::fprintf(stderr, "load failed: %s\n", err.c_str()); return 2; }
+    NeuralVoice nv(rt);
+    return run(nv, argc, argv);
 }

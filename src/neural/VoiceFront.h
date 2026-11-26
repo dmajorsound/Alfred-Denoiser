@@ -5,14 +5,17 @@
 //           delayed by the classic engine's latency so both line up
 // Below 350 Hz the rest is turned down more gently than above, which keeps the lows of a voice full.
 #include "NeuralVoice.h"
+#include "DfnVoice.h"
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
+// Engine: DfnVoice (DeepFilterNet3, the plug-in's real-time engine) or NeuralVoice (DPDFNet through ONNX Runtime)
+template <class Engine>
 class VoiceFront
 {
 public:
-    explicit VoiceFront(NeuralVoice& n) : nv(n) {}
+    explicit VoiceFront(Engine& n) : nv(n) {}
 
     void prepare(double sampleRate, int numChannels, int maxBlock)
     {
@@ -99,7 +102,7 @@ private:
     static constexpr int kLen = 1 << 16;
     struct Channel { double z1 = 0, z2 = 0; std::vector<float> lo, hi; int pos = 0; };
 
-    NeuralVoice& nv;
+    Engine& nv;
     double sr = 48000.0; int nch = 1, cap = 4096, rdPos = 0;
     std::vector<float> in[2], speech[2], dry[2];
     Channel ch[2];

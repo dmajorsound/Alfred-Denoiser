@@ -16,10 +16,10 @@ on:
         default: ""
 
 env:
-  VERSION: "0.47 beta"        # shown in the installers
-  FILEVER: "0.47_beta"        # used in the file names
-  PKGVER: "0.47.0"
-  DMGVER: "0.47-beta"
+  VERSION: "0.48 beta"        # shown in the installers
+  FILEVER: "0.48_beta"        # used in the file names
+  PKGVER: "0.48.0"
+  DMGVER: "0.48-beta"
   ORTVER: "1.22.0"            # ONNX Runtime (taken from its official Python package) that runs the neural voice engine            # numeric version for the macOS package receipts
 
 jobs:
@@ -61,7 +61,7 @@ jobs:
           mkdir -p support
           unzip -j -o ortwhl/*.whl "onnxruntime/capi/libonnxruntime.${ORTVER}.dylib" -d ortlib
           cp "ortlib/libonnxruntime.${ORTVER}.dylib" support/libonnxruntime.dylib
-          cp resources/models/dpdfnet2_48khz_hr.onnx resources/models/THIRD-PARTY-NOTICES.txt resources/models/DPDFNet-LICENSE-Apache-2.0.txt support/
+          cp resources/models/deepfilternet3_48k.bin resources/models/THIRD-PARTY-NOTICES.txt resources/models/DeepFilterNet-LICENSE-MIT.txt support/
           lipo -info support/libonnxruntime.dylib
           codesign --force -s - support/libonnxruntime.dylib
           # installed here too, so the Audio Unit check below runs with the neural engine
@@ -192,7 +192,7 @@ jobs:
           Expand-Archive ort.zip -DestinationPath ort
           New-Item -ItemType Directory -Force support | Out-Null
           Copy-Item ort\onnxruntime\capi\onnxruntime.dll support\
-          Copy-Item resources\models\dpdfnet2_48khz_hr.onnx, resources\models\THIRD-PARTY-NOTICES.txt, resources\models\DPDFNet-LICENSE-Apache-2.0.txt support\
+          Copy-Item resources\models\deepfilternet3_48k.bin, resources\models\THIRD-PARTY-NOTICES.txt, resources\models\DeepFilterNet-LICENSE-MIT.txt support\
           Get-ChildItem support
           # the two optional Enhance models, each a component of its own
           & "C:\Program Files\Git\bin\bash.exe" tools/fetch_enhance_models.sh enhance
