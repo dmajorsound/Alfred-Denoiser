@@ -13,7 +13,7 @@ AlfredEditor::AlfredEditor(AlfredProcessor& p) : AudioProcessorEditor(&p), proc(
     setResizable(true, true);
     setResizeLimits(400, 200, 2400, 2400);
     wantKey = proc.core.var("uwantk"); wantH = proc.core.var("uwanth");
-    updFlag = proc.core.var("ext_update"); updA = proc.core.var("ext_upd_a"); updB = proc.core.var("ext_upd_b"); updOpen = proc.core.var("ext_upd_open");
+    updFlag = proc.core.var("ext_update"); updA = proc.core.var("ext_upd_a"); updB = proc.core.var("ext_upd_b"); updOpen = proc.core.var("ext_upd_open"); manualOpen = proc.core.var("ext_manual_open");
     updateCheck->start();
     setSize(AlfredCore::gfxWidth(), AlfredCore::gfxHeight());
     startTimerHz(60);
@@ -112,6 +112,8 @@ void AlfredEditor::frame_(bool forced)
         if (UpdateCheck::state(a, b, updPage) == 1) { if (updA) *updA = a; if (updB) *updB = b; *updFlag = 1.0; }
     }
     if (updOpen && *updOpen >= 0.5) { *updOpen = 0.0; UpdateCheck::openPage(updPage); }
+    // READ MANUAL in the help panel: the manual on dmajorsound.com
+    if (manualOpen && *manualOpen >= 0.5) { *manualOpen = 0.0; juce::URL("https://dmajorsound.com/software/alfred/manual.html").launchInDefaultBrowser(); }
     const int pw = juce::jmax(1, juce::roundToInt(getWidth() * lastScale));
     const int ph = juce::jmax(1, juce::roundToInt(getHeight() * lastScale));
     bool all = false;

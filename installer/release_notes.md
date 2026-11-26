@@ -50,7 +50,10 @@ With one of them chosen, Alfred's delay is 5 seconds longer; REAPER compensates 
 - **Mac:** quit your DAW, open **Uninstall Alfred** in the .dmg (or `Alfred-DMGVER-mac-uninstall.pkg`) and click through (same Open Anyway as above if macOS complains).
 - **Windows:** quit your DAW, open `Alfred_FILEVER_uninstaller_win64.exe` and click through (same More info → Run anyway as above if SmartScreen complains). Or **Settings → Apps → Installed apps → Alfred → Uninstall**.
 
+### Help and manual
+The **?** button at the top opens a short help; **READ MANUAL** there opens the manual on [dmajorsound.com](https://dmajorsound.com/software/alfred/manual.html).
+
 ### Updates
-Alfred looks at this page when you open its window. If a newer version is here, a light red dot blinks at the bottom, right of the version number, with the new version ("0.49 is out"); a click opens the download page. Nothing is installed by itself, and no data other than the request to GitHub is sent.
+Alfred looks at this page when you open its window. If a newer version is here, a light red dot blinks at the bottom, right of the version number, with the new version ("0.50 is out"); a click opens the download page. Nothing is installed by itself, and no data other than the request to GitHub is sent.
 
 V VERSION, developed with AI assistance · [dmajorsound.com](https://dmajorsound.com)

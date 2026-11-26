@@ -16,10 +16,10 @@ on:
         default: ""
 
 env:
-  VERSION: "0.48 beta"        # shown in the installers
-  FILEVER: "0.48_beta"        # used in the file names
-  PKGVER: "0.48.0"
-  DMGVER: "0.48-beta"
+  VERSION: "0.49 beta"        # shown in the installers
+  FILEVER: "0.49_beta"        # used in the file names
+  PKGVER: "0.49.0"
+  DMGVER: "0.49-beta"
   ORTVER: "1.22.0"            # ONNX Runtime (taken from its official Python package) that runs the neural voice engine            # numeric version for the macOS package receipts
 
 jobs:
