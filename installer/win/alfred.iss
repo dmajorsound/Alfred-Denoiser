@@ -1,9 +1,9 @@
 ; Alfred installer for Windows (Inno Setup 6). The version comes from the build: ISCC /DAppVer=0.27 /DFileVer=0.27_beta
 #ifndef AppVer
-  #define AppVer "0.43 beta"
+  #define AppVer "0.44 beta"
 #endif
 #ifndef FileVer
-  #define FileVer "0.43_beta"
+  #define FileVer "0.44_beta"
 #endif
 
 [Setup]
@@ -42,6 +42,10 @@ Name: "restore"; Description: "Enhance model Restore: studio voice, worked out w
 Name: "sidon"; Description: "Enhance model Sidon: builds the voice anew, worked out when you render, slow (300 MB, needs the neural files). MIT License"; Types: full custom
 
 [Files]
+Source: "welcome-icon-100.bmp"; DestDir: "{tmp}"; Flags: dontcopy
+Source: "welcome-icon-200.bmp"; DestDir: "{tmp}"; Flags: dontcopy
+Source: "welcome-brand-100.bmp"; DestDir: "{tmp}"; Flags: dontcopy
+Source: "welcome-brand-200.bmp"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "..\..\build\Alfred_artefacts\Release\VST3\Alfred.vst3\*"; DestDir: "{commoncf64}\VST3\Alfred.vst3"; Components: vst3; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\build\Alfred_artefacts\Release\CLAP\Alfred.clap"; DestDir: "{commoncf64}\CLAP"; Components: clap; Flags: ignoreversion
 ; neural voice engine: ONNX Runtime and the model, shared by both plug-in formats
@@ -53,10 +57,12 @@ Source: "..\..\enhance\sidon\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; 
 
 [Messages]
 WelcomeLabel1=Alfred%nA simple Denoiser at your Service
-WelcomeLabel2=This installs Alfred as VST3 and CLAP plug-in into the common plug-in folders. On the next page you can choose which of them you want.%n%nQuit your DAW first. Afterwards, rescan your plug-ins there.
+WelcomeLabel2=This installs Alfred as VST3 and CLAP plug-in into the common plug-in folders. On the next page you can choose what to install.%n%nQuit your DAW first. Afterwards, rescan your plug-ins in your DAW.
 
 ; ---- a license page for the Restore model: shown only when that component is selected, and it must be accepted
 [Code]
+#include "branding.iss"
+
 var
   RailPage: TWizardPage;
   RailMemo: TNewMemo;
@@ -67,6 +73,9 @@ var
   Raw: AnsiString;
   Txt: String;
 begin
+  BrandWelcome('Alfred - A simple Denoiser at your Service',
+    'This installs Alfred as VST3 and CLAP plug-in into the common plug-in folders. On the next page you can choose what to install.' + #13#10 + #13#10 +
+    'Quit your DAW first. Afterwards, rescan your plug-ins in your DAW.');
   RailPage := CreateCustomPage(wpSelectComponents, 'License of the Enhance model Restore',
     'It covers the model and the audio made with it. Accept it to install Restore.');
   RailMemo := TNewMemo.Create(RailPage);

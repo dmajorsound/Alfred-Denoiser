@@ -2,3 +2,4 @@ build/
 dist/
 cmake-build-*/
 .DS_Store
+__pycache__/

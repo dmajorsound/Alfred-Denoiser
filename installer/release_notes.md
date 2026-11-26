@@ -12,7 +12,7 @@ Alfred splits a recording into Signal, Noise and Reverb and lets you rebalance t
 
 ### Download
 - **Mac** (Apple Silicon and Intel): [Alfred-DMGVER-mac.dmg](https://github.com/dmajorsound/Alfred-Denoiser/releases/download/TAGNAME/Alfred-DMGVER-mac.dmg) (VST3, AU, CLAP; installer, uninstaller and a helper for the macOS block)
-- **Windows** (64-bit): [Alfred_FILEVER_installer_win64.exe](https://github.com/dmajorsound/Alfred-Denoiser/releases/download/TAGNAME/Alfred_FILEVER_installer_win64.exe) (VST3, CLAP)
+- **Windows** (64-bit): [Alfred_FILEVER_installer_win64.exe](https://github.com/dmajorsound/Alfred-Denoiser/releases/download/TAGNAME/Alfred_FILEVER_installer_win64.exe) (VST3, CLAP), uninstaller `Alfred_FILEVER_uninstaller_win64.exe`
 
 ### Install on Mac
 Quit your DAW first, then open the .dmg:
@@ -48,9 +48,9 @@ With one of them chosen, Alfred's delay is 5 seconds longer; REAPER compensates 
 
 ### Uninstall
 - **Mac:** quit your DAW, open **Uninstall Alfred** in the .dmg (or `Alfred-DMGVER-mac-uninstall.pkg`) and click through (same Open Anyway as above if macOS complains).
-- **Windows:** quit your DAW, then **Settings → Apps → Installed apps → Alfred → Uninstall**.
+- **Windows:** quit your DAW, open `Alfred_FILEVER_uninstaller_win64.exe` and click through (same More info → Run anyway as above if SmartScreen complains). Or **Settings → Apps → Installed apps → Alfred → Uninstall**.
 
 ### Updates
-Alfred looks at this page when you open its window. If a newer version is here, a light red dot blinks at the bottom, right of the version number, with the new version ("0.44 is out"); a click opens the download page. Nothing is installed by itself, and no data other than the request to GitHub is sent.
+Alfred looks at this page when you open its window. If a newer version is here, a light red dot blinks at the bottom, right of the version number, with the new version ("0.45 is out"); a click opens the download page. Nothing is installed by itself, and no data other than the request to GitHub is sent.
 
 V VERSION, developed with AI assistance · [dmajorsound.com](https://dmajorsound.com)
