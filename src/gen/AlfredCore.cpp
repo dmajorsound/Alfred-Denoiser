@@ -43,7 +43,7 @@ AlfredCore::AlfredCore()
   str_define(90003, "+");
   str_define(90004, "");
   str_define(90005, "%s%.1f dB");
-  str_define(90006, "0.44 beta");
+  str_define(90006, "0.45 beta");
   str_define(90007, "0000007ffffeefffffdfd810");
   str_define(90008, "0000008ffff84ffffc1fffe3");
   str_define(90009, "0000008ffff84ffffb0ffffc");
@@ -567,8 +567,16 @@ double* AlfredCore::var(const char* n)
   if (!std::strcmp(n, "uhov")) return &v_uhov;
   if (!std::strcmp(n, "uhovp")) return &v_uhovp;
   if (!std::strcmp(n, "uhy0")) return &v_uhy0;
+  if (!std::strcmp(n, "uibh")) return &v_uibh;
+  if (!std::strcmp(n, "uibk")) return &v_uibk;
+  if (!std::strcmp(n, "uibw")) return &v_uibw;
+  if (!std::strcmp(n, "uicx")) return &v_uicx;
+  if (!std::strcmp(n, "uicy")) return &v_uicy;
   if (!std::strcmp(n, "uim")) return &v_uim;
+  if (!std::strcmp(n, "uis")) return &v_uis;
   if (!std::strcmp(n, "uisf")) return &v_uisf;
+  if (!std::strcmp(n, "uix")) return &v_uix;
+  if (!std::strcmp(n, "uiy")) return &v_uiy;
   if (!std::strcmp(n, "uka")) return &v_uka;
   if (!std::strcmp(n, "ukc")) return &v_ukc;
   if (!std::strcmp(n, "ukdim")) return &v_ukdim;
@@ -2713,9 +2721,33 @@ void AlfredCore::sec_gfx()
   (void)(g_setfont(7.0, 90044.0, std::floor((9.5 * v_usc)), 98.0));
   (void)(g_setfont(8.0, 90044.0, std::floor((9.0 * v_usc)), 0.0));
   (void)(g_setfont(9.0, 90044.0, std::floor((10.0 * v_usc)), 0.0));
-  (void)((v_upx = DF((v_uox + (28.0 * v_usc)))));
-  (void)((v_upy = DF((23.0 * v_usc))));
-  (void)((v_upr = DF((11.0 * v_usc))));
+  (void)(g_setfont(11.0, 90044.0, std::floor((5.6 * v_usc)), 98.0));
+  (void)((v_uis = DF(std::floor((24.0 * v_usc)))));
+  (void)((v_uix = DF(std::floor((v_uox + (16.0 * v_usc))))));
+  (void)((v_uiy = DF(std::floor((11.0 * v_usc)))));
+  (void)(f_ucol(3816257.0, 1.0));
+  (void)(f_urr(v_uix, v_uiy, v_uis, v_uis, (5.2 * v_usc), 1.0));
+  (void)(f_ucol(2105637.0, 1.0));
+  (void)(f_urr((v_uix + ([&]() -> double { double _t575 = 1.0; double _t576 = std::floor((0.5 * v_usc)); return _t575 < _t576 ? _t576 : _t575; }())), (v_uiy + ([&]() -> double { double _t577 = 1.0; double _t578 = std::floor((0.5 * v_usc)); return _t577 < _t578 ? _t578 : _t577; }())), (v_uis - (2.0 * ([&]() -> double { double _t579 = 1.0; double _t580 = std::floor((0.5 * v_usc)); return _t579 < _t580 ? _t580 : _t579; }()))), (v_uis - (2.0 * ([&]() -> double { double _t581 = 1.0; double _t582 = std::floor((0.5 * v_usc)); return _t581 < _t582 ? _t582 : _t581; }()))), (4.8 * v_usc), 1.0));
+  (void)((v_uicx = DF((v_uix + (v_uis / 2.0)))));
+  (void)((v_uicy = DF((v_uiy + (v_uis * 0.34)))));
+  (void)((v_uibw = DF((v_uis * 0.3))));
+  (void)((v_uibh = DF((v_uis * 0.16))));
+  (void)((v_uibk = DF((v_uibh * 0.18))));
+  (void)(f_ucol(16777215.0, 1.0));
+  (void)(g_triangle((v_uicx - (v_uibk * 0.9)), (v_uicy - (v_uibk * 0.7)), (v_uicx - (v_uibw / 2.0)), (v_uicy - (v_uibh / 2.0)), (v_uicx - (v_uibw / 2.0)), (v_uicy + (v_uibh / 2.0))));
+  (void)(g_triangle((v_uicx - (v_uibk * 0.9)), (v_uicy - (v_uibk * 0.7)), (v_uicx - (v_uibw / 2.0)), (v_uicy + (v_uibh / 2.0)), (v_uicx - (v_uibk * 0.9)), (v_uicy + (v_uibk * 0.7))));
+  (void)(g_triangle((v_uicx + (v_uibk * 0.9)), (v_uicy - (v_uibk * 0.7)), (v_uicx + (v_uibw / 2.0)), (v_uicy - (v_uibh / 2.0)), (v_uicx + (v_uibw / 2.0)), (v_uicy + (v_uibh / 2.0))));
+  (void)(g_triangle((v_uicx + (v_uibk * 0.9)), (v_uicy - (v_uibk * 0.7)), (v_uicx + (v_uibw / 2.0)), (v_uicy + (v_uibh / 2.0)), (v_uicx + (v_uibk * 0.9)), (v_uicy + (v_uibk * 0.7))));
+  (void)(g_rect(std::floor((v_uicx - (v_uibk * 1.05))), std::floor((v_uicy - (v_uibk * 1.05))), ([&]() -> double { double _t583 = 1.0; double _t584 = std::ceil((v_uibk * 2.1)); return _t583 < _t584 ? _t584 : _t583; }()), ([&]() -> double { double _t585 = 1.0; double _t586 = std::ceil((v_uibk * 2.1)); return _t585 < _t586 ? _t586 : _t585; }()), 1.0));
+  (void)(f_ucol(5018588.0, 1.0));
+  (void)(g_circle(v_uicx, v_uicy, ([&]() -> double { double _t587 = 0.6; double _t588 = (v_uis * 0.02); return _t587 < _t588 ? _t588 : _t587; }()), 1.0, 1.0));
+  (void)(g_setfont(11.0, -1.0, 0.0, 0.0));
+  (void)(f_ucol(16777215.0, 1.0));
+  (void)(f_utext(90045.0, v_uicx, (v_uiy + (v_uis * 0.49))));
+  (void)((v_upx = DF(std::floor((v_uox + (507.0 * v_usc))))));
+  (void)((v_upy = DF((std::floor((14.0 * v_usc)) + (std::floor((18.0 * v_usc)) / 2.0)))));
+  (void)((v_upr = DF((9.0 * v_usc))));
   if (T(f_uinc(v_upx, v_upy, (v_upr + (3.0 * v_usc))))) {
     (void)((v_uhov = DF(20.0)));
   }
@@ -2725,8 +2757,8 @@ void AlfredCore::sec_gfx()
   }
   (void)(f_ucol((T(v_uon) ? v_ucacto : v_ucdim), 1.0));
   (void)(g_circle(v_upx, v_upy, v_upr, 0.0, 1.0));
-  (void)(f_uarc(v_upx, v_upy, (5.0 * v_usc), 0.75, 5.53, (1.4 * v_usc)));
-  (void)(g_rect(std::floor((v_upx - (0.7 * v_usc))), std::floor((v_upy - (7.0 * v_usc))), ([&]() -> double { double _t575 = 1.0; double _t576 = std::floor((1.6 * v_usc)); return _t575 < _t576 ? _t576 : _t575; }()), std::floor((6.0 * v_usc)), 1.0));
+  (void)(f_uarc(v_upx, v_upy, (4.0 * v_usc), 0.75, 5.53, (1.3 * v_usc)));
+  (void)(g_rect(std::floor((v_upx - (0.65 * v_usc))), std::floor((v_upy - (5.8 * v_usc))), ([&]() -> double { double _t589 = 1.0; double _t590 = std::floor((1.4 * v_usc)); return _t589 < _t590 ? _t590 : _t589; }()), std::floor((5.0 * v_usc)), 1.0));
   (void)(g_setfont(1.0, -1.0, 0.0, 0.0));
   (void)(f_ucol(v_uctext, 1.0));
   (void)((v_gfx_x = DF((v_uox + (50.0 * v_usc)))));
@@ -2755,7 +2787,7 @@ void AlfredCore::sec_gfx()
   } else {
     (void)(f_uarc(v_utx, v_uty, (4.2 * v_usc), 0.0, 6.2832, (1.3 * v_usc)));
     (void)((v_uri = DF(0.0)));
-    for (int _t577 = loopcount(8.0); _t577 > 0; --_t577) {
+    for (int _t591 = loopcount(8.0); _t591 > 0; --_t591) {
       (void)((v_ura = DF((v_uri * 0.7854))));
       (void)(g_line((v_utx + ((std::sin(v_ura) * 6.4) * v_usc)), (v_uty - ((std::cos(v_ura) * 6.4) * v_usc)), (v_utx + ((std::sin(v_ura) * 9.0) * v_usc)), (v_uty - ((std::cos(v_ura) * 9.0) * v_usc)), 1.0));
       (void)((v_uri = DF(v_uri + 1.0)));
@@ -2779,7 +2811,7 @@ void AlfredCore::sec_gfx()
   (void)(f_ubtn(v_umx1, v_upy2, v_umw1, v_uph, (T(v_umfx) ? 0.0 : 1.0), EQ(v_uhov, 28.0), 90047.0));
   (void)(f_ubtn(v_umx2, v_upy2, v_umw2, v_uph, v_umfx, EQ(v_uhov, 29.0), 90048.0));
   (void)(f_ucol((T(((T(((T((T(v_umfx) ? 0.0 : 1.0)) && T(v_uon)) ? 1.0 : 0.0)) && T(((v_vv) > (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0)) ? v_ucacto : v_ucdim), 1.0));
-  (void)(g_circle((v_umx1 + std::floor((10.0 * v_usc))), (v_upy2 + std::floor((v_uph / 2.0))), ([&]() -> double { double _t578 = 2.0; double _t579 = (2.5 * v_usc); return _t578 < _t579 ? _t579 : _t578; }()), 1.0, 1.0));
+  (void)(g_circle((v_umx1 + std::floor((10.0 * v_usc))), (v_upy2 + std::floor((v_uph / 2.0))), ([&]() -> double { double _t592 = 2.0; double _t593 = (2.5 * v_usc); return _t592 < _t593 ? _t593 : _t592; }()), 1.0, 1.0));
   (void)(g_setfont(6.0, -1.0, 0.0, 0.0));
   (void)((v_uvx = DF(std::floor((v_uox + (208.0 * v_usc))))));
   (void)((v_uvw = DF(std::floor((70.0 * v_usc)))));
@@ -2801,9 +2833,9 @@ void AlfredCore::sec_gfx()
   (void)(g_rect(v_uox, std::floor((46.0 * v_usc)), std::floor((680.0 * v_usc)), 1.0, 1.0));
   (void)(f_ucol(v_ucbg, 1.0));
   if (T(v_uadv)) {
-    (void)(g_rect((v_uvx2 + ([&]() -> double { double _t580 = 1.0; double _t581 = std::floor((1.4 * v_usc)); return _t580 < _t581 ? _t581 : _t580; }())), std::floor((46.0 * v_usc)), (v_uvw2 - (2.0 * ([&]() -> double { double _t582 = 1.0; double _t583 = std::floor((1.4 * v_usc)); return _t582 < _t583 ? _t583 : _t582; }()))), 1.0, 1.0));
+    (void)(g_rect((v_uvx2 + ([&]() -> double { double _t594 = 1.0; double _t595 = std::floor((1.4 * v_usc)); return _t594 < _t595 ? _t595 : _t594; }())), std::floor((46.0 * v_usc)), (v_uvw2 - (2.0 * ([&]() -> double { double _t596 = 1.0; double _t597 = std::floor((1.4 * v_usc)); return _t596 < _t597 ? _t597 : _t596; }()))), 1.0, 1.0));
   } else {
-    (void)(g_rect((v_uvx + ([&]() -> double { double _t584 = 1.0; double _t585 = std::floor((1.4 * v_usc)); return _t584 < _t585 ? _t585 : _t584; }())), std::floor((46.0 * v_usc)), (v_uvw - (2.0 * ([&]() -> double { double _t586 = 1.0; double _t587 = std::floor((1.4 * v_usc)); return _t586 < _t587 ? _t587 : _t586; }()))), 1.0, 1.0));
+    (void)(g_rect((v_uvx + ([&]() -> double { double _t598 = 1.0; double _t599 = std::floor((1.4 * v_usc)); return _t598 < _t599 ? _t599 : _t598; }())), std::floor((46.0 * v_usc)), (v_uvw - (2.0 * ([&]() -> double { double _t600 = 1.0; double _t601 = std::floor((1.4 * v_usc)); return _t600 < _t601 ? _t601 : _t600; }()))), 1.0, 1.0));
   }
   (void)((v_usx = DF(std::floor((v_uox + (16.0 * v_usc))))));
   (void)((v_usw = DF(std::floor((648.0 * v_usc)))));
@@ -2828,9 +2860,9 @@ void AlfredCore::sec_gfx()
     (void)((v_uhov = DF(34.0)));
   }
   (void)(f_ucol(v_ucsurf, 1.0));
-  (void)(f_urr(v_usx, v_ufby, v_usw, v_ufbh, ([&]() -> double { double _t588 = 2.0; double _t589 = std::floor((3.0 * v_usc)); return _t588 < _t589 ? _t589 : _t588; }()), 1.0));
+  (void)(f_urr(v_usx, v_ufby, v_usw, v_ufbh, ([&]() -> double { double _t602 = 2.0; double _t603 = std::floor((3.0 * v_usc)); return _t602 < _t603 ? _t603 : _t602; }()), 1.0));
   (void)(f_ucol((T(EQ(v_uhov, 32.0)) ? v_uctext : v_ucbord), 1.0));
-  (void)(f_urr(v_usx, v_ufby, v_usw, v_ufbh, ([&]() -> double { double _t590 = 2.0; double _t591 = std::floor((3.0 * v_usc)); return _t590 < _t591 ? _t591 : _t590; }()), 0.0));
+  (void)(f_urr(v_usx, v_ufby, v_usw, v_ufbh, ([&]() -> double { double _t604 = 2.0; double _t605 = std::floor((3.0 * v_usc)); return _t604 < _t605 ? _t605 : _t604; }()), 0.0));
   (void)(f_ucol((T(EQ(v_uhov, 32.0)) ? v_uctext : v_ucmuted), 1.0));
   (void)((v_ufcx = DF((v_usx + std::floor((13.0 * v_usc))))));
   (void)((v_ufcc = DF((v_ufby + (v_ufbh * 0.5)))));
@@ -2866,26 +2898,26 @@ void AlfredCore::sec_gfx()
     (void)(g_rect(v_usx, v_usy, v_usw, v_ush, 1.0));
     (void)((v_unorm = DF((8.0 / (v_nl * v_nl)))));
     (void)((v_ufmin = DF(40.0)));
-    (void)((v_ufmax = DF(([&]() -> double { double _t592 = 20000.0; double _t593 = (v_srate * 0.5); return _t592 > _t593 ? _t593 : _t592; }()))));
+    (void)((v_ufmax = DF(([&]() -> double { double _t606 = 20000.0; double _t607 = (v_srate * 0.5); return _t606 > _t607 ? _t607 : _t606; }()))));
     (void)((v_uflog = DF(std::log((v_ufmax / v_ufmin)))));
     (void)((v_ufb0 = DF((v_ufmin * (v_nl / v_srate)))));
     if (T(((T(((T(v_uadv) && T(((v_uhovp) >= (50.0) ? 1.0 : 0.0))) ? 1.0 : 0.0)) && T(((v_uhovp) <= (54.0) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
       (void)((v_ub0 = DF((T(EQ(v_uhovp, 50.0)) ? v_ufmin : (T(EQ(v_uhovp, 51.0)) ? 120.0 : (T(EQ(v_uhovp, 52.0)) ? 500.0 : (T(EQ(v_uhovp, 53.0)) ? 2000.0 : 6000.0)))))));
       (void)((v_ub1 = DF((T(EQ(v_uhovp, 50.0)) ? 120.0 : (T(EQ(v_uhovp, 51.0)) ? 500.0 : (T(EQ(v_uhovp, 52.0)) ? 2000.0 : (T(EQ(v_uhovp, 53.0)) ? 6000.0 : v_ufmax)))))));
       (void)((v_ubx0 = DF(std::floor((v_usx + (v_usw * (std::log((v_ub0 / v_ufmin)) / v_uflog)))))));
-      (void)((v_ubx1 = DF(std::floor((v_usx + (v_usw * (std::log((([&]() -> double { double _t594 = v_ub1; double _t595 = v_ufmax; return _t594 > _t595 ? _t595 : _t594; }()) / v_ufmin)) / v_uflog)))))));
+      (void)((v_ubx1 = DF(std::floor((v_usx + (v_usw * (std::log((([&]() -> double { double _t608 = v_ub1; double _t609 = v_ufmax; return _t608 > _t609 ? _t609 : _t608; }()) / v_ufmin)) / v_uflog)))))));
       (void)(f_ucol(v_ucacto, 0.14));
       (void)(g_rect(v_ubx0, v_usy, (v_ubx1 - v_ubx0), v_ush, 1.0));
     }
     (void)(g_setfont(3.0, -1.0, 0.0, 0.0));
     (void)((v_ugy = DF(1.0)));
-    for (int _t596 = loopcount(3.0); _t596 > 0; --_t596) {
+    for (int _t610 = loopcount(3.0); _t610 > 0; --_t610) {
       (void)(f_ucol(v_ucline, 1.0));
       (void)(g_rect(v_usx, std::floor((v_usy + (v_ush * (v_ugy / 4.0)))), v_usw, 1.0, 1.0));
       (void)((v_ugy = DF(v_ugy + 1.0)));
     }
     (void)((v_ugn = DF(0.0)));
-    for (int _t597 = loopcount(8.0); _t597 > 0; --_t597) {
+    for (int _t611 = loopcount(8.0); _t611 > 0; --_t611) {
       (void)((v_ugf = DF((T(EQ(v_ugn, 0.0)) ? 50.0 : (T(EQ(v_ugn, 1.0)) ? 100.0 : (T(EQ(v_ugn, 2.0)) ? 200.0 : (T(EQ(v_ugn, 3.0)) ? 500.0 : (T(EQ(v_ugn, 4.0)) ? 1000.0 : (T(EQ(v_ugn, 5.0)) ? 2000.0 : (T(EQ(v_ugn, 6.0)) ? 5000.0 : 10000.0))))))))));
       (void)((v_ugx = DF(std::floor((v_usx + (v_usw * (std::log((v_ugf / v_ufmin)) / v_uflog)))))));
       if (T(((v_ugx) < ((v_usx + v_usw)) ? 1.0 : 0.0))) {
@@ -2919,11 +2951,11 @@ void AlfredCore::sec_gfx()
     if (T(((T(v_uadv) && T(((v_slider17) > (0.5) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
       (void)(f_ucol(v_ucsig, 0.9));
       (void)((v_uei = DF(0.0)));
-      (void)((v_uen = DF(std::floor((v_usw / ([&]() -> double { double _t598 = 2.0; double _t599 = std::floor((3.0 * v_usc)); return _t598 < _t599 ? _t599 : _t598; }()))))));
-      for (int _t600 = loopcount((v_uen + 1.0)); _t600 > 0; --_t600) {
+      (void)((v_uen = DF(std::floor((v_usw / ([&]() -> double { double _t612 = 2.0; double _t613 = std::floor((3.0 * v_usc)); return _t612 < _t613 ? _t613 : _t612; }()))))));
+      for (int _t614 = loopcount((v_uen + 1.0)); _t614 > 0; --_t614) {
         (void)((v_uek = DF(std::floor(((v_ufb0 * std::exp((v_uflog * (v_uei / v_uen)))) + 0.5)))));
         (void)((v_uex2 = DF((v_usx + (v_usw * (v_uei / v_uen))))));
-        (void)((v_uey2 = DF((v_usy + ((v_ush * 0.5) - (([&]() -> double { double _t601 = (-22.0); double _t602 = ([&]() -> double { double _t603 = 22.0; double _t604 = (((M((v_enhc + v_uek)) * v_slider17) * 0.01) + v_glev); return _t603 > _t604 ? _t604 : _t603; }()); return _t601 < _t602 ? _t602 : _t601; }()) * (v_ush / 48.0)))))));
+        (void)((v_uey2 = DF((v_usy + ((v_ush * 0.5) - (([&]() -> double { double _t615 = (-22.0); double _t616 = ([&]() -> double { double _t617 = 22.0; double _t618 = (((M((v_enhc + v_uek)) * v_slider17) * 0.01) + v_glev); return _t617 > _t618 ? _t618 : _t617; }()); return _t615 < _t616 ? _t616 : _t615; }()) * (v_ush / 48.0)))))));
         if (T(((v_uei) > (0.0) ? 1.0 : 0.0))) {
           (void)(g_line(v_uexp, v_ueyp, v_uex2, v_uey2, 1.0));
         }
@@ -2954,7 +2986,7 @@ void AlfredCore::sec_gfx()
       (void)((v_uhov = DF(31.0)));
     }
     (void)(f_ucol(v_ucstage, 1.0));
-    (void)(f_urr(v_uanx, v_uany, v_uanw, v_uanh, ([&]() -> double { double _t605 = 2.0; double _t606 = std::floor((3.0 * v_usc)); return _t605 < _t606 ? _t606 : _t605; }()), 1.0));
+    (void)(f_urr(v_uanx, v_uany, v_uanw, v_uanh, ([&]() -> double { double _t619 = 2.0; double _t620 = std::floor((3.0 * v_usc)); return _t619 < _t620 ? _t620 : _t619; }()), 1.0));
     (void)(f_ubtn(v_uanx, v_uany, v_uanw, v_uanh, v_uana, EQ(v_uhov, 31.0), 90071.0));
     (void)(g_setfont(3.0, -1.0, 0.0, 0.0));
   }
@@ -3029,7 +3061,7 @@ void AlfredCore::sec_gfx()
     (void)(f_ucol(v_ucline, 1.0));
     (void)(g_rect(std::floor((v_uox + ((214.0 + (52.0 * 6.5)) * v_usc))), (v_uay + std::floor((10.0 * v_usc))), 1.0, (v_uah - std::floor((20.0 * v_usc))), 1.0));
     (void)((v_ufi = DF(0.0)));
-    for (int _t607 = loopcount(9.0); _t607 > 0; --_t607) {
+    for (int _t621 = loopcount(9.0); _t621 > 0; --_t621) {
       (void)((v_ufid = DF((T(EQ(v_ufi, 0.0)) ? 40.0 : (T(EQ(v_ufi, 1.0)) ? 41.0 : (T(EQ(v_ufi, 7.0)) ? 60.0 : (T(EQ(v_ufi, 8.0)) ? 61.0 : (48.0 + v_ufi))))))));
       (void)((v_ufx = DF(std::floor((v_uox + (((208.0 + (52.0 * v_ufi)) + (T(((v_ufi) >= (2.0) ? 1.0 : 0.0)) ? 6.0 : 0.0)) * v_usc))))));
       (void)((v_ufy = DF(std::floor((v_uay + (48.0 * v_usc))))));
@@ -3064,7 +3096,7 @@ void AlfredCore::sec_gfx()
     (void)((v_uyk = DF(((v_uay + v_uah) + std::floor((12.0 * v_usc))))));
   }
   (void)((v_ugi = DF(0.0)));
-  for (int _t608 = loopcount(3.0); _t608 > 0; --_t608) {
+  for (int _t622 = loopcount(3.0); _t622 > 0; --_t622) {
     (void)((v_ukx = DF(std::floor((v_uox + ((124.0 + (216.0 * v_ugi)) * v_usc))))));
     (void)((v_ukc = DF(f_upart(v_ugi))));
     (void)((v_ukm = DF((T(EQ(v_ugi, 0.0)) ? v_slider6 : (T(EQ(v_ugi, 1.0)) ? v_slider7 : v_slider8)))));
@@ -3096,9 +3128,9 @@ void AlfredCore::sec_gfx()
     }
     (void)((v_ulv = DF(((T(EQ(v_ugi, 0.0)) ? v_lvs : (T(EQ(v_ugi, 1.0)) ? v_lva : v_lvr)) * (8.0 / ((3.0 * v_nl) * v_nl))))));
     (void)((v_uld = DF((10.0 * std::log10((v_ulv + v_tiny))))));
-    (void)((v_ulf = DF(([&]() -> double { double _t609 = 0.0; double _t610 = ([&]() -> double { double _t611 = 1.0; double _t612 = ((v_uld + 72.0) / 72.0); return _t611 > _t612 ? _t612 : _t611; }()); return _t609 < _t610 ? _t610 : _t609; }()))));
-    (void)((M((v_uim + v_ugi)) = DF(([&]() -> double { double _t613 = v_ulf; double _t614 = (M((v_uim + v_ugi)) - 0.02); return _t613 < _t614 ? _t614 : _t613; }()))));
-    (void)((v_umw = DF(([&]() -> double { double _t616 = 3.0; double _t617 = std::floor((6.0 * v_usc)); return _t616 < _t617 ? _t617 : _t616; }()))));
+    (void)((v_ulf = DF(([&]() -> double { double _t623 = 0.0; double _t624 = ([&]() -> double { double _t625 = 1.0; double _t626 = ((v_uld + 72.0) / 72.0); return _t625 > _t626 ? _t626 : _t625; }()); return _t623 < _t624 ? _t624 : _t623; }()))));
+    (void)((M((v_uim + v_ugi)) = DF(([&]() -> double { double _t627 = v_ulf; double _t628 = (M((v_uim + v_ugi)) - 0.02); return _t627 < _t628 ? _t628 : _t627; }()))));
+    (void)((v_umw = DF(([&]() -> double { double _t630 = 3.0; double _t631 = std::floor((6.0 * v_usc)); return _t630 < _t631 ? _t631 : _t630; }()))));
     (void)((v_umx = DF(std::floor((v_ukx + (22.0 * v_usc))))));
     (void)(f_ucol(v_uchair, 1.0));
     (void)(g_rect(v_umx, v_uky, v_umw, v_ukh, 1.0));
@@ -3202,7 +3234,7 @@ void AlfredCore::sec_gfx()
   (void)((v_uisf = DF(((T(((T(((T(((T(((T(((T(((v_uhov) >= (1.0) ? 1.0 : 0.0)) && T(((v_uhov) <= (3.0) ? 1.0 : 0.0))) ? 1.0 : 0.0)) || T(EQ(v_uhov, 40.0))) ? 1.0 : 0.0)) || T(EQ(v_uhov, 41.0))) ? 1.0 : 0.0)) || T(((T(((v_uhov) >= (50.0) ? 1.0 : 0.0)) && T(((v_uhov) <= (54.0) ? 1.0 : 0.0))) ? 1.0 : 0.0))) ? 1.0 : 0.0)) || T(EQ(v_uhov, 60.0))) ? 1.0 : 0.0)) || T(EQ(v_uhov, 61.0))) ? 1.0 : 0.0))));
   if (T(v_uedit)) {
     (void)((v_uch = DF(g_getchar())));
-    for (int _t618 = 1048576; _t618 > 0 && T(((v_uch) > (0.0) ? 1.0 : 0.0)); --_t618) {
+    for (int _t632 = 1048576; _t632 > 0 && T(((v_uch) > (0.0) ? 1.0 : 0.0)); --_t632) {
       if (T(EQ(v_uch, 13.0))) {
         if (T(str_match(90099.0, 80006.0, {&v_utyped}))) {
           (void)(f_uset(v_uedit, v_utyped));
@@ -3240,7 +3272,7 @@ void AlfredCore::sec_gfx()
     if (T(v_uisf)) {
       (void)((v_unow = DF(rt_time_precise())));
       if (T(((T(BAND(v_mouse_cap, 4.0)) || T(((T(EQ(v_uhov, v_ulast)) && T((((v_unow - v_ulastt)) < (0.3) ? 1.0 : 0.0))) ? 1.0 : 0.0))) ? 1.0 : 0.0))) {
-        (void)(([&]() -> double { double _t619 = v_uhov; double _t620 = f_udef(v_uhov); return f_uset(_t619, _t620); }()));
+        (void)(([&]() -> double { double _t633 = v_uhov; double _t634 = f_udef(v_uhov); return f_uset(_t633, _t634); }()));
         (void)(rt_slider_automate(f_umask(v_uhov), 1.0));
         (void)((v_udrag = DF(0.0)));
       } else {
@@ -3399,10 +3431,10 @@ void AlfredCore::sec_gfx()
   }
   if (T(((T(v_ulb) && T(v_udrag)) ? 1.0 : 0.0))) {
     if (T(NE(v_mouse_y, v_udy))) {
-      (void)((v_udacc = DF(v_udacc + (((v_udy - v_mouse_y) / ([&]() -> double { double _t621 = 1.0; double _t622 = v_udh; return _t621 < _t622 ? _t622 : _t621; }())) * (T(BAND(v_mouse_cap, 8.0)) ? 0.2 : 1.0)))));
-      (void)((v_udacc = DF(([&]() -> double { double _t623 = 0.0; double _t624 = ([&]() -> double { double _t625 = 1.0; double _t626 = v_udacc; return _t625 > _t626 ? _t626 : _t625; }()); return _t623 < _t624 ? _t624 : _t623; }()))));
+      (void)((v_udacc = DF(v_udacc + (((v_udy - v_mouse_y) / ([&]() -> double { double _t635 = 1.0; double _t636 = v_udh; return _t635 < _t636 ? _t636 : _t635; }())) * (T(BAND(v_mouse_cap, 8.0)) ? 0.2 : 1.0)))));
+      (void)((v_udacc = DF(([&]() -> double { double _t637 = 0.0; double _t638 = ([&]() -> double { double _t639 = 1.0; double _t640 = v_udacc; return _t639 > _t640 ? _t640 : _t639; }()); return _t637 < _t638 ? _t638 : _t637; }()))));
       (void)((v_udy = DF(v_mouse_y)));
-      (void)(([&]() -> double { double _t627 = v_udrag; double _t628 = (std::floor(((f_uval(v_udrag, v_udacc) * 10.0) + 0.5)) / 10.0); return f_uset(_t627, _t628); }()));
+      (void)(([&]() -> double { double _t641 = v_udrag; double _t642 = (std::floor(((f_uval(v_udrag, v_udacc) * 10.0) + 0.5)) / 10.0); return f_uset(_t641, _t642); }()));
     }
     (void)((v_uhov = DF(v_udrag)));
   }
@@ -3412,7 +3444,7 @@ void AlfredCore::sec_gfx()
   }
   if (T(NE(v_mouse_wheel, 0.0))) {
     if (T(v_uisf)) {
-      (void)(([&]() -> double { double _t631 = v_uhov; double _t632 = (std::floor(((([&]() -> double { double _t629 = v_uhov; double _t630 = (f_upos(v_uhov) + ((T(((v_mouse_wheel) > (0.0) ? 1.0 : 0.0)) ? 1.0 : (-1.0)) * (T(BAND(v_mouse_cap, 8.0)) ? 0.002 : 0.01))); return f_uval(_t629, _t630); }()) * 10.0) + 0.5)) / 10.0); return f_uset(_t631, _t632); }()));
+      (void)(([&]() -> double { double _t645 = v_uhov; double _t646 = (std::floor(((([&]() -> double { double _t643 = v_uhov; double _t644 = (f_upos(v_uhov) + ((T(((v_mouse_wheel) > (0.0) ? 1.0 : 0.0)) ? 1.0 : (-1.0)) * (T(BAND(v_mouse_cap, 8.0)) ? 0.002 : 0.01))); return f_uval(_t643, _t644); }()) * 10.0) + 0.5)) / 10.0); return f_uset(_t645, _t646); }()));
       (void)(rt_slider_automate(f_umask(v_uhov), 1.0));
     }
     (void)((v_mouse_wheel = DF(0.0)));

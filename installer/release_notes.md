@@ -51,6 +51,6 @@ With one of them chosen, Alfred's delay is 5 seconds longer; REAPER compensates 
 - **Windows:** quit your DAW, open `Alfred_FILEVER_uninstaller_win64.exe` and click through (same More info → Run anyway as above if SmartScreen complains). Or **Settings → Apps → Installed apps → Alfred → Uninstall**.
 
 ### Updates
-Alfred looks at this page when you open its window. If a newer version is here, a light red dot blinks at the bottom, right of the version number, with the new version ("0.45 is out"); a click opens the download page. Nothing is installed by itself, and no data other than the request to GitHub is sent.
+Alfred looks at this page when you open its window. If a newer version is here, a light red dot blinks at the bottom, right of the version number, with the new version ("0.46 is out"); a click opens the download page. Nothing is installed by itself, and no data other than the request to GitHub is sent.
 
 V VERSION, developed with AI assistance · [dmajorsound.com](https://dmajorsound.com)
