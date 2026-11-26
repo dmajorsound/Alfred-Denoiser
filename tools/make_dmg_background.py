@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Draws the window background of Alfred's Mac disk image, after OLAAF's installer/mac_dmg.
 
-    make_dmg_background.py <folder with IBMPlexSans-Regular.ttf and IBMPlexSans-Bold.ttf> <output folder>
+    make_dmg_background.py <folder with IBMPlexSans-Regular.ttf and IBMPlexSans-Bold.ttf> <output folder> [logo.png]
 
 Writes background.png (640 x 420) and background@2x.png (1280 x 840). The build joins them with
 tiffutil -cathidpicheck into .background/background.tiff. The icons sit at (150,160), (330,160), (530,160).
@@ -37,7 +37,7 @@ def badge(d, cx, cy, dia, digit, font):
     d.text((cx, cy), digit, font=font, fill=WHITE, anchor="mm")
 
 
-def draw(fonts, k):
+def draw(fonts, k, logo=None):
     W, H = 640 * k, 420 * k
     img = Image.new("RGB", (W, H), WHITE)
     d = ImageDraw.Draw(img)
@@ -51,6 +51,12 @@ def draw(fonts, k):
     nx = 62 * k + d.textlength(NAME, font=bold) + 10 * k
     d.text((nx, 40.5 * k), SUBTITLE, font=sub, fill=GRAY, anchor="ls")
     d.rectangle([24 * k, 62 * k, 616 * k - 1, 62 * k + k - 1], fill=RULE)
+    # the dmajorsound logo top right: 36 pt high, right edge at 616, top at 16 (level with the icon, above the rule)
+    if logo is not None:
+        h = 36 * k
+        w = round(logo.width * h / logo.height)
+        lg = logo.resize((w, h), Image.LANCZOS)
+        img.paste(lg, (616 * k - w, 16 * k), lg)
 
     # over the icons: 1 above Install, 2 above Blocked, a line before Uninstall
     badge(d, 150 * k, 89 * k, 22.5 * k, "1", big)
@@ -71,6 +77,8 @@ def draw(fonts, k):
 
 if __name__ == "__main__":
     fonts, out = sys.argv[1], sys.argv[2]
+    here = os.path.dirname(os.path.abspath(__file__))
+    logo = Image.open(sys.argv[3] if len(sys.argv) > 3 else os.path.join(here, "..", "installer", "mac_ui", "logo.png")).convert("RGBA")
     os.makedirs(out, exist_ok=True)
-    draw(fonts, 1).save(os.path.join(out, "background.png"), optimize=True)
-    draw(fonts, 2).save(os.path.join(out, "background@2x.png"), optimize=True)
+    draw(fonts, 1, logo).save(os.path.join(out, "background.png"), optimize=True)
+    draw(fonts, 2, logo).save(os.path.join(out, "background@2x.png"), optimize=True)

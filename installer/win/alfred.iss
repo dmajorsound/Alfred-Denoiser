@@ -1,9 +1,9 @@
 ; Alfred installer for Windows (Inno Setup 6). The version comes from the build: ISCC /DAppVer=0.27 /DFileVer=0.27_beta
 #ifndef AppVer
-  #define AppVer "0.42 beta"
+  #define AppVer "0.43 beta"
 #endif
 #ifndef FileVer
-  #define FileVer "0.42_beta"
+  #define FileVer "0.43_beta"
 #endif
 
 [Setup]
@@ -53,7 +53,7 @@ Source: "..\..\enhance\sidon\*"; DestDir: "{commonappdata}\dmajorsound\Alfred"; 
 
 [Messages]
 WelcomeLabel1=Alfred%nA simple Denoiser at your Service
-WelcomeLabel2=This installs Alfred as VST3 and CLAP plug-in into the common plug-in folders. On the next page you can choose which of them you want.%n%nAfterwards, rescan your plug-ins in REAPER.
+WelcomeLabel2=This installs Alfred as VST3 and CLAP plug-in into the common plug-in folders. On the next page you can choose which of them you want.%n%nQuit your DAW first. Afterwards, rescan your plug-ins there.
 
 ; ---- a license page for the Restore model: shown only when that component is selected, and it must be accepted
 [Code]

@@ -16,10 +16,10 @@ on:
         default: ""
 
 env:
-  VERSION: "0.42 beta"        # shown in the installers
-  FILEVER: "0.42_beta"        # used in the file names
-  PKGVER: "0.42.0"
-  DMGVER: "0.42-beta"
+  VERSION: "0.43 beta"        # shown in the installers
+  FILEVER: "0.43_beta"        # used in the file names
+  PKGVER: "0.43.0"
+  DMGVER: "0.43-beta"
   ORTVER: "1.22.0"            # ONNX Runtime (taken from its official Python package) that runs the neural voice engine            # numeric version for the macOS package receipts
 
 jobs:
@@ -129,7 +129,7 @@ jobs:
           cp "Alfred-${DMGVER}-mac-uninstall.pkg" "dmg/Uninstall Alfred.pkg"
           printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
             '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
-            '<plist version="1.0"><dict><key>URL</key><string>x-apple.systempreferences:com.apple.preference.security?General</string></dict></plist>' \
+            '<plist version="1.0"><dict><key>URL</key><string>x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension</string></dict></plist>' \
             > "dmg/Blocked? Open Privacy & Security.webloc"
           plutil -lint "dmg/Blocked? Open Privacy & Security.webloc"
           tiffutil -cathidpicheck installer/mac_dmg/background.png installer/mac_dmg/background@2x.png -out dmg/.background/background.tiff
