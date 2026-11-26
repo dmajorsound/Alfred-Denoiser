@@ -44,8 +44,8 @@ void AlfredEditor::updateMouse(const juce::MouseEvent& e, bool)
     if (mcap) *mcap = capFromMods(e.mods);
 }
 
-void AlfredEditor::mouseMove(const juce::MouseEvent& e) { updateMouse(e, false); }
-void AlfredEditor::mouseDrag(const juce::MouseEvent& e) { updateMouse(e, true); timerCallback(); }   // a drag is drawn at once
+void AlfredEditor::mouseMove(const juce::MouseEvent& e) { updateMouse(e, false); lastInputAt = juce::Time::getMillisecondCounterHiRes(); }
+void AlfredEditor::mouseDrag(const juce::MouseEvent& e) { updateMouse(e, true); lastInputAt = juce::Time::getMillisecondCounterHiRes(); }   // drawn with the next frame
 void AlfredEditor::mouseExit(const juce::MouseEvent& e) { updateMouse(e, false); }
 
 void AlfredEditor::mouseDown(const juce::MouseEvent& e)
@@ -53,12 +53,13 @@ void AlfredEditor::mouseDown(const juce::MouseEvent& e)
     grabKeyboardFocus();
     buttons = (e.mods.isLeftButtonDown() ? 1 : 0) | (e.mods.isRightButtonDown() ? 2 : 0) | (e.mods.isMiddleButtonDown() ? 64 : 0);
     updateMouse(e, true);
-    timerCallback();            // a click between two frames is seen by the next frame
+    lastInputAt = juce::Time::getMillisecondCounterHiRes();
+    frame_(true);               // a click is seen at once, even between two frames
 }
 
 void AlfredEditor::mouseUp(const juce::MouseEvent& e)
 {
-    timerCallback();
+    frame_(true);
     buttons = 0;
     updateMouse(e, false);
 }
@@ -91,10 +92,19 @@ bool AlfredEditor::keyPressed(const juce::KeyPress& k)
     return true;
 }
 
-void AlfredEditor::timerCallback()
+void AlfredEditor::frame_(bool forced)
 {
     // nothing is drawn while the window is not on screen
     if (!isShowing()) return;
+    const double now = juce::Time::getMillisecondCounterHiRes();
+    if (!forced)
+    {
+        const bool busy = now - lastInputAt < 600.0;
+        const double gap = juce::jmax(busy ? 15.0 : 31.0, lastFrameMs * 4.0);
+        if (now - lastFrameAt < gap) return;
+    }
+    lastFrameAt = now;
+    struct Cost { AlfredEditor& e; double t0; ~Cost() { e.lastFrameMs = juce::Time::getMillisecondCounterHiRes() - t0; } } cost { *this, now };
     // a newer release on GitHub? The script shows an UPDATE button in the footer; a click on it opens the page
     if (updFlag && *updFlag < 0.5)
     {

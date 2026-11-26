@@ -316,7 +316,10 @@ void AlfredProcessor::process(juce::AudioBuffer<T>& buffer, bool bypassed)
 
     T* l = buffer.getWritePointer(0);
     T* r = nch > 1 ? buffer.getWritePointer(1) : nullptr;
-    if (neural == nullptr || front == nullptr)
+    const bool inPath = frontInPath();
+    if (inPath && !frontWasInPath) front->reset();      // the network comes into the path: it starts afresh
+    frontWasInPath = inPath;
+    if (!inPath)
     {
         for (int i = 0; i < n; ++i)
         {

@@ -27,7 +27,7 @@ static const JsfxSliderInfo kSliders[] = {
   { 21, 50.0, 0.0, 100.0, 0.1, "Preserve Transients (%)", nullptr, true },
   { 22, 0.0, 0.0, 1.0, 1.0, "Analyzer", "Off|On", true },
   { 23, 0.0, 0.0, 1.0, 1.0, "Spectrum", "Folded|Open", true },
-  { 24, 1.0, 0.0, 1.0, 1.0, "Voice Engine", "Classic|Neural", true },
+  { 24, 0.0, 0.0, 1.0, 1.0, "Voice Engine", "Classic|Neural", true },
   { 25, 0.0, 0.0, 2.0, 1.0, "Enhance Model", "Classic|Restore|Sidon", true },
 };
 const JsfxSliderInfo* AlfredCore::sliderInfo(int& count) { count = 25; return kSliders; }
@@ -43,7 +43,7 @@ AlfredCore::AlfredCore()
   str_define(90003, "+");
   str_define(90004, "");
   str_define(90005, "%s%.1f dB");
-  str_define(90006, "0.46 beta");
+  str_define(90006, "0.47 beta");
   str_define(90007, "0000007ffffeefffffdfd810");
   str_define(90008, "0000008ffff84ffffc1fffe3");
   str_define(90009, "0000008ffff84ffffb0ffffc");
@@ -166,8 +166,8 @@ AlfredCore::AlfredCore()
   str_define(90126, "Sidon: voice built anew, slow. Not real time: play a passage twice to hear it. Renders include it.");
   str_define(90127, "Neural voice engine: not available (needs 48 kHz and its installed files).");
   str_define(90128, "Neural voice engine: works in Voice mode only.");
-  str_define(90129, "Neural voice engine is on. Click for the classic engine.");
-  str_define(90130, "Classic engine is on. Click for the neural voice engine.");
+  str_define(90129, "Neural voice engine is on (needs more CPU, 60 ms more delay). Click for the classic engine.");
+  str_define(90130, "Classic engine is on (real time, light on CPU). Click for the neural voice engine.");
   str_define(90131, "Spectrum: click to open the display. The analyzer stays off until you switch it on there.");
   str_define(90132, "Spectrum: click to fold the display away.");
   str_define(90133, "Analyzer: click to switch the spectrum off and save CPU.");
@@ -221,7 +221,7 @@ AlfredCore::AlfredCore()
   v_slider21 = 50.0;
   v_slider22 = 0.0;
   v_slider23 = 0.0;
-  v_slider24 = 1.0;
+  v_slider24 = 0.0;
   v_slider25 = 0.0;
   bindVars();
 }

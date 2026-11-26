@@ -84,7 +84,12 @@ private:
     // ---- neural voice engine (48 kHz, Voice mode). It splits the input into the voice and the rest; the voice
     // goes through the classic engine, the rest comes back in at the level of the Noise fader.
     void loadNeural();
-    int neuralLatency() const { return neural ? NeuralVoice::kLatency : 0; }
+    // the network sits in the signal path only while the engine switch is on Neural (at 48 kHz): with the classic
+    // engine Alfred has no extra delay and spends nothing on the network
+    bool frontInPath() const { return neural != nullptr && front != nullptr && vSrate != nullptr && std::abs(*vSrate - 48000.0) < 1.0
+                                      && vEngine != nullptr && *vEngine >= 0.5; }
+    int neuralLatency() const { return frontInPath() ? NeuralVoice::kLatency : 0; }
+    bool frontWasInPath = false;
     NeuralRuntime neuralRuntime;
     std::unique_ptr<NeuralVoice> neural;
     bool neuralTried = false;

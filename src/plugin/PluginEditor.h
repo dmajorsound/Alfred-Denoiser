@@ -23,7 +23,12 @@ public:
     void modifierKeysChanged(const juce::ModifierKeys&) override;
 
 private:
-    void timerCallback() override;
+    void timerCallback() override { frame_(false); }
+    // one frame of the script's interface. Not forced: skipped when the last frame was too recent - 60 frames a
+    // second while the mouse is busy, 30 otherwise, and never more than a quarter of the message thread's time,
+    // so the host's own window (play cursor, meters) always keeps running.
+    void frame_(bool forced);
+    double lastFrameAt = 0.0, lastFrameMs = 0.0, lastInputAt = 0.0;
     void updateMouse(const juce::MouseEvent& e, bool down);
     int capFromMods(const juce::ModifierKeys& m) const;
 
