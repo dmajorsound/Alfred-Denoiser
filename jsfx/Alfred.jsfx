@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.41 beta
+//version: 0.42 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -40,7 +40,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.41 beta";
+#verstr = "0.42 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;

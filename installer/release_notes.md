@@ -11,22 +11,19 @@
 Alfred splits a recording into Signal, Noise and Reverb and lets you rebalance them, for dialogue and sound effects.
 
 ### Download
-- **Mac** (Apple Silicon and Intel): `Alfred_FILEVER_installer_mac.pkg` below (VST3, AU, CLAP)
-- **Windows** (64-bit): `Alfred_FILEVER_installer_win64.exe` below (VST3, CLAP)
+- **Mac** (Apple Silicon and Intel): [Alfred-DMGVER-mac.dmg](https://github.com/dmajorsound/Alfred-Denoiser/releases/download/TAGNAME/Alfred-DMGVER-mac.dmg) (VST3, AU, CLAP; installer, uninstaller and a helper for the macOS block)
+- **Windows** (64-bit): [Alfred_FILEVER_installer_win64.exe](https://github.com/dmajorsound/Alfred-Denoiser/releases/download/TAGNAME/Alfred_FILEVER_installer_win64.exe) (VST3, CLAP)
 
-### Install
-1. Quit REAPER.
-2. Open the installer and click through. It puts Alfred into the common plug-in folders.
-3. Start REAPER. If Alfred does not show up: **Options → Preferences → Plug-ins → VST** (or CLAP) **→ Re-scan**.
+### Install on Mac
+Quit your DAW first, then open the .dmg:
+1. Double-click **Install Alfred** and click through.
+2. macOS says it can’t be opened? Click **Done**, then double-click **Blocked? Open Privacy & Security**, scroll down and click **Open Anyway**.
+3. Double-click **Install Alfred** again and choose **Open**.
 
-> [!CAUTION]
-> **Mac: "Alfred can't be opened because it is from an unidentified developer"**
->
-> The installer is not signed by Apple. Do **not** double-click it again. Instead:
-> 1. **Right-click** (or Control-click) the .pkg and choose **Open**.
-> 2. Click **Open** in the warning.
->
-> Still blocked? Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to Alfred.
+The installer is free and not signed by Apple, so macOS asks once. Start your DAW; if Alfred does not show up in REAPER: **Options → Preferences → Plug-ins → VST** (or CLAP) **→ Re-scan**.
+
+### Install on Windows
+Quit your DAW, open the installer and click through. It puts Alfred into the common plug-in folders.
 
 > [!CAUTION]
 > **Windows: "Windows protected your PC" (SmartScreen)**
@@ -49,7 +46,11 @@ With one of them chosen, Alfred's delay is 5 seconds longer; REAPER compensates 
 > [!NOTE]
 > Restore is under the OpenRAIL license. Whoever uses it, or audio made with it, agrees to its use restrictions: no unlawful, harmful, harassing or discriminating use. Both installers show the license and ask you to accept it before Restore is installed (since 0.38); the text is also installed next to the model (`restore-LICENSE-OpenRAIL.txt`). Sidon is under the MIT License.
 
+### Uninstall
+- **Mac:** quit your DAW, open **Uninstall Alfred** in the .dmg (or `Alfred-DMGVER-mac-uninstall.pkg`) and click through (same Open Anyway as above if macOS complains).
+- **Windows:** quit your DAW, then **Settings → Apps → Installed apps → Alfred → Uninstall**.
+
 ### Updates
-Alfred looks at this page when you open its window. If a newer version is here, a light red dot blinks at the bottom, right of the version number, with the new version ("0.42 is out"); a click opens the download page. Nothing is installed by itself, and no data other than the request to GitHub is sent.
+Alfred looks at this page when you open its window. If a newer version is here, a light red dot blinks at the bottom, right of the version number, with the new version ("0.43 is out"); a click opens the download page. Nothing is installed by itself, and no data other than the request to GitHub is sent.
 
 V VERSION, developed with AI assistance · [dmajorsound.com](https://dmajorsound.com)

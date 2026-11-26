@@ -23,6 +23,7 @@ jobs:
         run: |
           VERSION=$(grep -m1 'VERSION:' .github/workflows/build.yml | sed 's/.*VERSION: *"\([^"]*\)".*/\1/')
           FILEVER=$(grep -m1 'FILEVER:' .github/workflows/build.yml | sed 's/.*FILEVER: *"\([^"]*\)".*/\1/')
-          sed "s/FILEVER/$FILEVER/g; s/VERSION/$VERSION/g" installer/release_notes.md > notes.txt
+          DMGVER=$(grep -m1 'DMGVER:' .github/workflows/build.yml | sed 's/.*DMGVER: *"\([^"]*\)".*/\1/')
+          sed "s/TAGNAME/$TAG/g; s/DMGVER/$DMGVER/g; s/FILEVER/$FILEVER/g; s/VERSION/$VERSION/g" installer/release_notes.md > notes.txt
           cat notes.txt
           gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --title "Alfred $VERSION" --notes-file notes.txt --prerelease=false --latest
