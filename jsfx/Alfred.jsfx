@@ -1,7 +1,7 @@
 desc: Alfred
 //author: dmajorsound
 //tags: restoration denoise dereverb dialogue sfx
-//version: 0.49 beta
+//version: 0.50 beta
 //about: Adaptive denoiser for dialogue and sound effects. Splits the sound into
 //  Signal, Noise (steady background) and Reverb (room tail) and lets you rebalance them.
 //  With all three at 0 dB (and Enhance at 0) the output is the delayed input, and the three solos add up to it.
@@ -40,7 +40,7 @@ out_pin:Right
 @init
 ext_noinit = 1;
 gfx_ext_retina = 1;
-#verstr = "0.49 beta";
+#verstr = "0.50 beta";
 
 // ---------------------------------------------------------------- constants
 BIG    = 10^30;
@@ -986,6 +986,9 @@ uox = floor((gfx_w-664*usc)/2 - 8*usc);
 ulb = mouse_cap & 1;
 upress = ulb && !ulbp;
 urelease = !ulb && ulbp;
+// the right button (only the update note in the footer has a menu)
+urb = mouse_cap & 2;
+urpress = urb && !urbp; urbp = urb;
 uhov = 0;
 uon = slider4 >= 0.5;
 
@@ -1089,6 +1092,8 @@ uebw = floor(118*usc); uebx = unbx - uebw - floor(6*usc);
 ext_enh > 0 && uin(uebx, unby, uebw, unbh) ? uhov = 35;
 // the update note is drawn with the footer, further down; its place is known from the frame before
 ext_update >= 0.5 && uupw > 0 && uin(uupx, uupy, uupw, uuph) ? uhov = 34;
+// right-click on it: the plug-in opens its menu (download only, the download folder, what's new)
+uhov == 34 && urpress && !uhelp ? ext_upd_menu = 1;
 ucol(ucSURF, 1); urr(usx, ufby, usw, ufbh, max(2, floor(3*usc)), 1);
 ucol(uhov == 32 ? ucTEXT : ucBORD, 1); urr(usx, ufby, usw, ufbh, max(2, floor(3*usc)), 0);
 ucol(uhov == 32 ? ucTEXT : ucMUTED, 1);
@@ -1424,28 +1429,51 @@ gfx_setfont(9);
 sprintf(#uver, "V %s - developed with AI assistance", #verstr);
 gfx_measurestr(#uver, ulgw, ulgh);
 ucol(ucMUTED, 1); gfx_x = uox+16*usc; gfx_y = floor(ufcy - ulgh/2); gfx_drawstr(#uver);
-// a newer Alfred has been released (the plug-in asks GitHub once per session and sets ext_update): as in OLAAF,
-// right of the version a light red dot that blinks every 0.7 s and "0.41 is out" in red, in the footer's type;
-// a click opens the download page
-ext_update >= 0.5 ? (
-  sprintf(#uupd, "%d.%d is out", ext_upd_a, ext_upd_b);
-  sprintf(#uupt, "Alfred %d.%d beta is out. Click to open the download page.", ext_upd_a, ext_upd_b);
-  gfx_measurestr(#uupd, uunw, uunh);
-  uudr = 3.5*usc;
-  uudx = floor(uox+16*usc + ulgw + 8*usc) + uudr; uudy = ufcy;
-  ucol(0xF06E6E, 1);
-  gfx_circle(uudx, uudy, uudr, (floor(time_precise()/0.7) % 2) == 0, 1);
-  udark ? (gfx_r = 1; gfx_g = 0x7A/255; gfx_b = 0x6E/255) : (gfx_r = 0xC8/255; gfx_g = 0x42/255; gfx_b = 0x3B/255);
-  gfx_x = floor(uudx + uudr + 4*usc); gfx_y = floor(ufcy - uunh/2); gfx_drawstr(#uupd);
-  uupx = floor(uudx - uudr - 4*usc); uupy = floor(ufcy - 9*usc);
-  uupw = floor(gfx_x + 4*usc) - uupx; uuph = floor(18*usc);
-  gfx_a = 1;
-) : ( uupw = 0; );
 gfx_a = 1; ucol(ucMUTED, 1);
 gfx_measurestr("dmajorsound.com", ulgw, ulgh);
 // the dmajorsound mark sits in the bottom right corner, "dmajorsound.com" to its left, both on one center line
 ulmw = usc >= 1.5 ? lgw2 : lgw1;
-gfx_x = floor(uox+664*usc - ulmw - 6*usc - ulgw); gfx_y = floor(ufcy - ulgh/2); gfx_drawstr("dmajorsound.com");
+udmx = floor(uox+664*usc - ulmw - 6*usc - ulgw);
+// a newer Alfred has been released (the plug-in asks GitHub once per session and sets ext_update): as in OLAAF 0.8.7,
+// left of "dmajorsound.com" a light red dot and the note in red, in the footer's type. ext_upd_dl: 0 nothing yet,
+// 1 downloading (ext_upd_prog 0..1, a ring instead of the dot), 2 downloaded, 3 failed. The plug-in writes the
+// tooltip into the string whose id is ext_upd_tipid.
+ext_upd_tipid = #uupt;
+ext_update >= 0.5 ? (
+  ext_upd_dl == 1 ? sprintf(#uupd, "Downloading %d.%d ... %d%%", ext_upd_a, ext_upd_b, floor(ext_upd_prog*100)) :
+  ext_upd_dl == 2 ? sprintf(#uupd, "%d.%d downloaded", ext_upd_a, ext_upd_b) :
+  ext_upd_dl == 3 ? strcpy(#uupd, "Download failed") :
+  sprintf(#uupd, "%d.%d is out", ext_upd_a, ext_upd_b);
+  gfx_measurestr(#uupd, uunw, uunh);
+  uudr = 3.5*usc;
+  // right-aligned: the text ends 14 px before "dmajorsound.com"
+  uutx = floor(udmx - 14*usc - uunw);
+  uudx = uutx - floor(4*usc) - uudr; uudy = ufcy;
+  ucol(0xF06E6E, 1);
+  ext_upd_dl == 1 ? (
+    // a thin ring that fills from the top as the file comes in
+    gfx_circle(uudx, uudy, uudr, 0, 1);
+    uang = 0; ustep = 2*$pi/32;
+    loop(floor(max(0, min(1, ext_upd_prog))*32 + 0.5),
+      gfx_triangle(uudx, uudy, uudx + sin(uang)*uudr, uudy - cos(uang)*uudr,
+                   uudx + sin(uang+ustep)*uudr, uudy - cos(uang+ustep)*uudr);
+      uang += ustep;
+    );
+  ) : ext_upd_dl == 2 || ext_upd_dl == 3 ? (
+    gfx_circle(uudx, uudy, uudr, 1, 1);
+  ) : (
+    gfx_circle(uudx, uudy, uudr, (floor(time_precise()/0.7) % 2) == 0, 1);
+  );
+  udark ? (gfx_r = 1; gfx_g = 0x7A/255; gfx_b = 0x6E/255) : (gfx_r = 0xC8/255; gfx_g = 0x42/255; gfx_b = 0x3B/255);
+  gfx_x = uutx; gfx_y = floor(ufcy - uunh/2); gfx_drawstr(#uupd);
+  uupx = floor(uudx - uudr - 4*usc); uupy = floor(ufcy - 9*usc);
+  uupw = floor(gfx_x + 4*usc) - uupx; uuph = floor(18*usc);
+  // the plug-in fills in the tooltip; the JSFX alone only knows the page
+  ext_upd_tipset < 0.5 ? sprintf(#uupt, "Alfred %d.%d beta is out. Click to open the download page.", ext_upd_a, ext_upd_b);
+  gfx_a = 1;
+) : ( uupw = 0; );
+ucol(ucMUTED, 1);
+gfx_x = udmx; gfx_y = floor(ufcy - ulgh/2); gfx_drawstr("dmajorsound.com");
 ucol(ucMUTED, 1); ulogo(floor(uox+664*usc), ufcy);
 gfx_a = 1;
 gfx_setfont(2);

@@ -93,7 +93,12 @@ public:
   double v_ext_noinit = 0.0;
   double v_ext_upd_a = 0.0;
   double v_ext_upd_b = 0.0;
+  double v_ext_upd_dl = 0.0;
+  double v_ext_upd_menu = 0.0;
   double v_ext_upd_open = 0.0;
+  double v_ext_upd_prog = 0.0;
+  double v_ext_upd_tipid = 0.0;
+  double v_ext_upd_tipset = 0.0;
   double v_ext_update = 0.0;
   double v_ext_voice = 0.0;
   double v_fcount = 0.0;
@@ -274,6 +279,7 @@ public:
   double v_uah = 0.0;
   double v_uah2 = 0.0;
   double v_uana = 0.0;
+  double v_uang = 0.0;
   double v_uanh = 0.0;
   double v_uanw = 0.0;
   double v_uanx = 0.0;
@@ -312,6 +318,7 @@ public:
   double v_udacc = 0.0;
   double v_udark = 0.0;
   double v_udh = 0.0;
+  double v_udmx = 0.0;
   double v_udrag = 0.0;
   double v_udy = 0.0;
   double v_uebw = 0.0;
@@ -421,9 +428,12 @@ public:
   double v_uqx = 0.0;
   double v_uqy = 0.0;
   double v_ura = 0.0;
+  double v_urb = 0.0;
+  double v_urbp = 0.0;
   double v_urcs = 0.0;
   double v_urelease = 0.0;
   double v_uri = 0.0;
+  double v_urpress = 0.0;
   double v_urpx = 0.0;
   double v_urpy = 0.0;
   double v_urr2 = 0.0;
@@ -435,6 +445,7 @@ public:
   double v_ush = 0.0;
   double v_ushb = 0.0;
   double v_uson = 0.0;
+  double v_ustep = 0.0;
   double v_usw = 0.0;
   double v_usx = 0.0;
   double v_usy = 0.0;
@@ -464,6 +475,7 @@ public:
   double v_uupw = 0.0;
   double v_uupx = 0.0;
   double v_uupy = 0.0;
+  double v_uutx = 0.0;
   double v_uvw = 0.0;
   double v_uvw2 = 0.0;
   double v_uvx = 0.0;

@@ -68,6 +68,12 @@ int main(int argc, char** argv)
             juce::File f(fn); f.deleteFile();
             juce::FileOutputStream os(f); juce::PNGImageFormat png; png.writeImageToStream(img, os);
         }
+        else if (c == "t")      // the plug-in's tooltip for the update note: t text
+        {
+            std::string txt; std::getline(in, txt); if (!txt.empty() && txt[0] == ' ') txt.erase(0, 1);
+            if (double* id = core.var("ext_upd_tipid")) core.str(*id) = txt;
+            if (double* ts = core.var("ext_upd_tipset")) *ts = 1.0;
+        }
         else if (c == "g")      // print one variable: g name
         {
             std::string nm; in >> nm;

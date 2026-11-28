@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "JuceGfx.h"
 #include "UpdateCheck.h"
+#include "UpdateDownload.h"
 
 class AlfredEditor : public juce::AudioProcessorEditor, private juce::Timer
 {
@@ -41,6 +42,11 @@ private:
     double* gw; double* gh; double* gretina;
     juce::SharedResourcePointer<UpdateCheck> updateCheck;   // one for all open Alfred windows
     double* updFlag = nullptr; double* updA = nullptr; double* updB = nullptr; double* updOpen = nullptr; double* manualOpen = nullptr;
+    double* updDl = nullptr; double* updProg = nullptr; double* updMenu = nullptr; double* updTipId = nullptr;
+    void updateClick();                         // the note in the footer: download and install, install, or the page
+    void updateMenu();                          // its right-click menu
+    void updateTip();                           // the text under the mouse for the note
+    std::unique_ptr<juce::FileChooser> folderChooser;
     juce::String updPage;
     int buttons = 0;
     float lastScale = 1.0f;

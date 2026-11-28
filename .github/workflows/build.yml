@@ -16,10 +16,10 @@ on:
         default: ""
 
 env:
-  VERSION: "0.49 beta"        # shown in the installers
-  FILEVER: "0.49_beta"        # used in the file names
-  PKGVER: "0.49.0"
-  DMGVER: "0.49-beta"
+  VERSION: "0.50 beta"        # shown in the installers
+  FILEVER: "0.50_beta"        # used in the file names
+  PKGVER: "0.50.0"
+  DMGVER: "0.50-beta"
   ORTVER: "1.22.0"            # ONNX Runtime (taken from its official Python package) that runs the neural voice engine            # numeric version for the macOS package receipts
 
 jobs:
@@ -41,9 +41,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DALFRED_UPDATE_TEST=ON
       - name: Build
         run: cmake --build build --config Release -j 4
+      - name: Update download self-test (the plug-in's own code fetches the published 0.49 installer)
+        # If this fails, nothing is published: the update button in the plug-in would not work either.
+        run: |
+          set -e
+          t=$(find build -type f -name AlfredUpdateTest -perm -u+x | head -1)
+          "$t" "https://github.com/dmajorsound/Alfred-Denoiser/releases/download/v0.49-beta/Alfred-0.49-beta-mac.dmg" "$RUNNER_TEMP/updtest"
       - name: Strip and sign (ad hoc)
         run: |
           A=build/Alfred_artefacts/Release
@@ -177,9 +183,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake -S . -B build -A x64
+        run: cmake -S . -B build -A x64 -DALFRED_UPDATE_TEST=ON
       - name: Build
         run: cmake --build build --config Release -j 4
+      - name: Update download self-test (the plug-in's own code fetches the published 0.49 installer)
+        # If this fails, nothing is published: the update button in the plug-in would not work either.
+        shell: bash
+        run: |
+          set -e
+          t=$(find build -type f -name AlfredUpdateTest.exe | head -1)
+          "$t" "https://github.com/dmajorsound/Alfred-Denoiser/releases/download/v0.49-beta/Alfred_0.49_beta_installer_win64.exe" "$RUNNER_TEMP/updtest"
       - name: Installer (.exe)
         shell: pwsh
         run: |

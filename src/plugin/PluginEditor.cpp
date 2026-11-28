@@ -14,6 +14,15 @@ AlfredEditor::AlfredEditor(AlfredProcessor& p) : AudioProcessorEditor(&p), proc(
     setResizeLimits(400, 200, 2400, 2400);
     wantKey = proc.core.var("uwantk"); wantH = proc.core.var("uwanth");
     updFlag = proc.core.var("ext_update"); updA = proc.core.var("ext_upd_a"); updB = proc.core.var("ext_upd_b"); updOpen = proc.core.var("ext_upd_open"); manualOpen = proc.core.var("ext_manual_open");
+    updDl = proc.core.var("ext_upd_dl"); updProg = proc.core.var("ext_upd_prog"); updMenu = proc.core.var("ext_upd_menu"); updTipId = proc.core.var("ext_upd_tipid");
+    // a downloaded update that should install opens on the message thread (the download ends on its own thread)
+    static bool hooked = false;
+    if (!hooked)
+    {
+        hooked = true;
+        UpdateDownload::get().onReadyToInstall = [](const juce::File& f)
+        { juce::MessageManager::callAsync([f] { UpdateDownload::openInstaller(f); }); };
+    }
     updateCheck->start();
     setSize(AlfredCore::gfxWidth(), AlfredCore::gfxHeight());
     startTimerHz(60);
@@ -111,7 +120,16 @@ void AlfredEditor::frame_(bool forced)
         int a = 0, b = 0;
         if (UpdateCheck::state(a, b, updPage) == 1) { if (updA) *updA = a; if (updB) *updB = b; *updFlag = 1.0; }
     }
-    if (updOpen && *updOpen >= 0.5) { *updOpen = 0.0; UpdateCheck::openPage(updPage); }
+    if (updFlag && *updFlag >= 0.5)
+    {
+        double prog = 0.0;
+        const int dl = UpdateDownload::get().status(&prog);
+        if (updDl) *updDl = dl;
+        if (updProg) *updProg = prog;
+        updateTip();
+    }
+    if (updOpen && *updOpen >= 0.5) { *updOpen = 0.0; updateClick(); }
+    if (updMenu && *updMenu >= 0.5) { *updMenu = 0.0; updateMenu(); }
     // READ MANUAL in the help panel: the manual on dmajorsound.com
     if (manualOpen && *manualOpen >= 0.5) { *manualOpen = 0.0; juce::URL("https://dmajorsound.com/software/alfred/manual.html").launchInDefaultBrowser(); }
     const int pw = juce::jmax(1, juce::roundToInt(getWidth() * lastScale));
@@ -180,4 +198,88 @@ void AlfredEditor::paint(juce::Graphics& g)
     g.setImageResamplingQuality(juce::Graphics::lowResamplingQuality);
     if (shown.isValid()) g.drawImage(shown, getLocalBounds().toFloat());
     else g.fillAll(juce::Colours::black);
+}
+
+// ---- update straight from GitHub (as in OLAAF)
+static juce::String updVersion(double* a, double* b)
+{
+    return juce::String(a ? (int)*a : 0) + "." + juce::String(b ? (int)*b : 0);
+}
+
+void AlfredEditor::updateTip()
+{
+    if (updTipId == nullptr || *updTipId < 80000.0) return;
+    double prog = 0.0; juce::File path; juce::String err;
+    const int dl = UpdateDownload::get().status(&prog, &path, &err);
+    const juce::String v = updVersion(updA, updB);
+    const juce::String dir = UpdateDownload::get().folder().getFileName();
+    const bool direct = UpdateCheck::asset().isNotEmpty();
+    juce::String t;
+    if (dl == UpdateDownload::kLoading) t = "Alfred " + v + " is coming from GitHub into your " + dir + " folder.";
+    else if (dl == UpdateDownload::kThere) t = "Alfred " + v + " is in " + dir + ". Click to install it (quit your DAW before you click Install).";
+    else if (dl == UpdateDownload::kFailed) t = "Download failed (" + err + "). Click to try again, right-click for the page.";
+    else t = direct ? "Alfred " + v + " is out. Click to download and install it. Right-click: more choices."
+                    : "Alfred " + v + " is out. Click to open the download page.";
+    if (t.length() > 104) t = t.substring(0, 101) + "...";
+    proc.core.str(*updTipId) = t.toStdString();
+    if (auto* ts = proc.core.var("ext_upd_tipset")) *ts = 1.0;
+}
+
+void AlfredEditor::updateClick()
+{
+    auto& d = UpdateDownload::get();
+    const juce::String asset = UpdateCheck::asset();
+    juce::File path;
+    const int dl = d.status(nullptr, &path);
+    if (asset.isEmpty()) UpdateCheck::openPage(updPage);
+    else if (dl == UpdateDownload::kThere) UpdateDownload::openInstaller(path);
+    else if (dl != UpdateDownload::kLoading) d.start(asset, true);
+}
+
+void AlfredEditor::updateMenu()
+{
+    auto& d = UpdateDownload::get();
+    const juce::String asset = UpdateCheck::asset();
+    juce::File path;
+    const int dl = d.status(nullptr, &path);
+    const bool direct = asset.isNotEmpty();
+    const juce::File dir = d.folder();
+    juce::PopupMenu m;
+    if (dl == UpdateDownload::kThere)
+    {
+        m.addItem(3, "Install now");
+       #if JUCE_MAC
+        m.addItem(4, "Show in Finder");
+       #else
+        m.addItem(4, "Show in Explorer");
+       #endif
+    }
+    else
+    {
+        m.addItem(1, "Download and install", direct && dl != UpdateDownload::kLoading);
+        m.addItem(2, "Download only (install later)", direct && dl != UpdateDownload::kLoading);
+    }
+    m.addSeparator();
+    m.addItem(5, "Download to: " + dir.getFileName() + " ...", dl != UpdateDownload::kLoading);
+    m.addItem(6, "What's new (release page)");
+    juce::Component::SafePointer<AlfredEditor> self(this);
+    const juce::String page = updPage;
+    m.showMenuAsync(juce::PopupMenu::Options().withMousePosition(), [self, asset, path, dir, page](int cmd)
+    {
+        auto& dd = UpdateDownload::get();
+        if (cmd == 1 || cmd == 2) dd.start(asset, cmd == 1);
+        else if (cmd == 3) UpdateDownload::openInstaller(path);
+        else if (cmd == 4) UpdateDownload::reveal(path);
+        else if (cmd == 6) UpdateCheck::openPage(page);
+        else if (cmd == 5 && self != nullptr)
+        {
+            self->folderChooser = std::make_unique<juce::FileChooser>("Alfred: choose where updates are downloaded to", dir);
+            self->folderChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                                             [](const juce::FileChooser& fc)
+                                             {
+                                                 const juce::File r = fc.getResult();
+                                                 if (r.isDirectory()) UpdateDownload::get().setFolder(r);
+                                             });
+        }
+    });
 }

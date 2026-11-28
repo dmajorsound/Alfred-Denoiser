@@ -22,6 +22,10 @@ public:
         return s;
     }
 
+    // the newer release's installer for this system, straight from GitHub ("" when there is none)
+    static juce::String asset() { const juce::ScopedLock l(lock()); return data().asset; }
+    static void setAssetForTest(const juce::String& u) { const juce::ScopedLock l(lock()); data().asset = u; }
+
     // opens the release page in the browser (only github.com addresses)
     static void openPage(const juce::String& page)
     {
@@ -29,7 +33,7 @@ public:
     }
 
 private:
-    struct Data { int major = 0, minor = 0; juce::String url; };
+    struct Data { int major = 0, minor = 0; juce::String url, asset; };
     static std::atomic<bool>& started() { static std::atomic<bool> v { false }; return v; }
     static std::atomic<int>& result() { static std::atomic<int> v { 0 }; return v; }
     static juce::CriticalSection& lock() { static juce::CriticalSection c; return c; }
@@ -57,7 +61,18 @@ private:
         std::string tag, url;
         if (status != 200 || threadShouldExit() || !alfred_update::parse(js, JucePlugin_VersionString, tag, url)) { result() = 2; return; }
         const auto v = alfred_update::versionParts(tag);
-        { const juce::ScopedLock l(lock()); data().major = v[0]; data().minor = v[1]; data().url = juce::String(url); }
+       #if JUCE_MAC
+        const bool mac = true;
+       #else
+        const bool mac = false;
+       #endif
+        std::string asset;
+       #if JUCE_MAC || JUCE_WINDOWS
+        asset = alfred_update::assetUrl(js, "https://github.com/dmajorsound/Alfred-Denoiser/releases/download/", mac);
+       #else
+        (void)mac;
+       #endif
+        { const juce::ScopedLock l(lock()); data().major = v[0]; data().minor = v[1]; data().url = juce::String(url); data().asset = juce::String(asset); }
         result() = 1;
     }
 };

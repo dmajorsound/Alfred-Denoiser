@@ -1,10 +1,10 @@
 ; Alfred uninstaller for Windows (Inno Setup 6): removes Alfred as VST3 and CLAP, with its neural engine and
-; Enhance models. Projects and audio stay untouched. ISCC /DAppVer=0.49 beta /DFileVer=0.49_beta
+; Enhance models. Projects and audio stay untouched. ISCC /DAppVer=0.50 beta /DFileVer=0.50_beta
 #ifndef AppVer
-  #define AppVer "0.49 beta"
+  #define AppVer "0.50 beta"
 #endif
 #ifndef FileVer
-  #define FileVer "0.49_beta"
+  #define FileVer "0.50_beta"
 #endif
 
 [Setup]

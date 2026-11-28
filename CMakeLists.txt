@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Alfred VERSION 0.49.0 LANGUAGES C CXX)
+project(Alfred VERSION 0.50.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -106,4 +106,15 @@ if(ALFRED_TESTS)
     target_include_directories(AlfredGfxTest PRIVATE src/core src/gen src/plugin)
     target_compile_definitions(AlfredGfxTest PRIVATE WDL_FFT_REALSIZE=8 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
     target_link_libraries(AlfredGfxTest PRIVATE AlfredFonts juce::juce_graphics juce::juce_recommended_config_flags)
+endif()
+
+# ---- the update download, tested by the GitHub build on macOS and Windows before anything is published:
+# a small program that fetches a released installer with the plug-in's own download code
+option(ALFRED_UPDATE_TEST "Build the update download test" OFF)
+if(ALFRED_UPDATE_TEST)
+    juce_add_console_app(AlfredUpdateTest PRODUCT_NAME "AlfredUpdateTest")
+    target_sources(AlfredUpdateTest PRIVATE tests/update_download.cpp)
+    target_include_directories(AlfredUpdateTest PRIVATE src/plugin)
+    target_compile_definitions(AlfredUpdateTest PRIVATE JucePlugin_VersionString="${PROJECT_VERSION}" JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+    target_link_libraries(AlfredUpdateTest PRIVATE juce::juce_core juce::juce_data_structures juce::juce_recommended_config_flags)
 endif()
